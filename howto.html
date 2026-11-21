@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta name="robots" content="noindex, nofollow">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; script-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<title>本めぐりの使い方</title>
+<meta name="description" content="本めぐりは、全国の本屋と図書館をめぐってスタンプを集める地図です。はじめての方への使い方。">
+<meta property="og:title" content="本めぐりの使い方">
+<meta property="og:description" content="本屋をめぐって、本とめぐりあう。スタンプの押し方・本のカード・開催中のイベント。">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="本めぐり">
+<meta property="og:url" content="https://meguri.tsunagubooks.com/howto.html">
+<meta property="og:image" content="https://meguri.tsunagubooks.com/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="icon-192.png?v=4">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=4">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+P+One&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<!-- 使い方のページ（v0.17.3）。ぶっくまさん「はじめてアクセスする人のために使い方を案内できますか」。アプリの設定と、最初の案内の最後から開く。SNSで配ってもよい -->
+<style>
+  :root { --ink: #1B1B1B; --ink2: #5A554D; --paper: #FFF8EA; --card: #FFFFFF; --line: #E6DCC8; --shu: #FF6A48; --gold: #FFD447; --sora: #2F9BFF; --midori: #4FC07A; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 500 16px/1.75 "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 20px 16px 48px; }
+  .hero { text-align: center; padding: 22px 16px 18px; background: var(--card); border: 3px solid var(--ink); border-radius: 22px; box-shadow: 0 5px 0 var(--ink); }
+  .hero .name { font-family: "Mochiy Pop P One", sans-serif; font-size: 34px; line-height: 1.2; margin: 0; }
+  .hero .catch { margin: 6px 0 12px; font-weight: 700; color: var(--ink2); }
+  .hero p { margin: 0 0 14px; }
+  .open { display: inline-block; padding: 12px 26px; background: var(--shu); color: var(--ink); font-weight: 700; font-size: 18px; text-decoration: none; border: 3px solid var(--ink); border-radius: 999px; box-shadow: 0 4px 0 var(--ink); }
+  .open:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+  h2 { font-family: "Mochiy Pop P One", sans-serif; font-size: 20px; margin: 30px 0 10px; }
+  ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+  ol.steps li { position: relative; margin: 0 0 12px; padding: 14px 14px 14px 62px; background: var(--card); border: 2px solid var(--ink); border-radius: 16px; }
+  ol.steps li::before { counter-increment: step; content: counter(step); position: absolute; left: 14px; top: 14px; width: 34px; height: 34px; display: grid; place-items: center; font-family: "Mochiy Pop P One", sans-serif; font-size: 17px; background: var(--gold); border: 2px solid var(--ink); border-radius: 50%; }
+  ol.steps b { display: block; font-size: 17px; margin-bottom: 2px; }
+  .sub { color: var(--ink2); font-size: 14px; }
+  .event { margin-top: 30px; padding: 16px; background: #FFF3C4; border: 3px solid var(--ink); border-radius: 18px; box-shadow: 0 0 0 5px #fff, 0 0 0 8px var(--gold); }
+  .event .tag { display: inline-block; font-size: 13px; font-weight: 700; padding: 2px 10px; border: 2px solid var(--ink); border-radius: 999px; background: var(--gold); }
+  .event h2 { margin: 8px 0 6px; }
+  .event ul { margin: 8px 0 0; padding-left: 20px; }
+  .box { background: var(--card); border: 2px solid var(--ink); border-radius: 16px; padding: 14px 16px; }
+  .box ul { margin: 6px 0 0; padding-left: 20px; }
+  .box li { margin: 4px 0; }
+  .faq p { margin: 0 0 12px; line-height: 1.75; }
+  .end { text-align: center; margin-top: 30px; }
+  .note { color: var(--ink2); font-size: 13px; text-align: center; margin-top: 18px; }
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <p class="name">本めぐり</p>
+    <p class="catch">本屋をめぐって、本とめぐりあう</p>
+    <p>全国の本屋と図書館をめぐって、スタンプを集める地図です。<br>お金はかかりません。登録もいりません。</p>
+    <a class="open" href="./">本めぐりをひらく</a>
+  </section>
+
+  <h2>使い方</h2>
+  <ol class="steps">
+    <li><b>ひらいて、はじめの設定をする</b>自分のアイコン（絵か画像）とハンドルネームを決めると始められます。<div class="sub">9つの質問（ボタンを押すだけ・30秒ほど）は、そのときか、はじめてスタンプを押した次の日にお願いします。答えると、物語のプロローグができます。名前以外の答えは、統計データとして使います。</div></li>
+    <li><b>位置を「許可」する</b>地図に、近くの本屋と図書館が出ます。いちばん近い店は、地図の下の札に出ます。店の名前や住所でさがすときは、右上の虫めがねから。<div class="sub">位置は、スタンプを押す店を決めるのに使うだけで、送りません。</div></li>
+    <li><b>本屋に行って、スタンプを押す</b>店から120mの中に入ると、店のページに「スタンプを押す」が出ます。押すとページがたまり、巻が進みます。同じ店に何度も通うと「常連度」が上がります。</li>
+    <li><b>本と出会ったら、カードにする</b>店のページの「本と出会った」から、本の裏のバーコードを読むか、書名でさがします。なぜ手に取ったかを、ひとこと残せます。</li>
+    <li><b>読書の時間も、ページになる</b>地図の下の「ここから読む」を押して、読み終わったら「しおりをはさむ」。読んだ時間だけページが増えます（1分で1ページ）。<div class="sub">はじめた所から1km以上はなれた所でしおりをはさむと「移動読書」。しおりをはさんだ所には、地図にしおりの印が残ります（この端末の中だけ）。押し忘れても、1時間を過ぎてから開くと、読んだ長さを聞きます。</div></li>
+    <li><b>1冊の旅と、本の里帰り</b>本屋で出会った本を読み終えると、どこで何回読んだかが「1冊の旅」の1枚になります（めぐり帳の「本」）。その本と出会った店でもう一度スタンプを押すと「里帰り」のスタンプに。</li>
+    <li><b>めぐり帳で、ふり返る</b>押したスタンプ・本のカード・その日の物語が、めぐり帳にたまります。</li>
+    <li><b>参加店</b>ピンのまわりに朱の二重丸がある店は「参加店」。お店の方が、書店員さんの1冊やフェア・売場の写真を載せている店です。地図を寄せると、書店員さんのひとことが吹き出しで出ます。「ちかく」では、いちばん上に並びます。<div class="sub">お店が新しい中身を送ると7日間「新しく届いた」と出ます。中身が古くなると（1冊は公開から90日・フェアは期間が終わると）、二重丸はつかなくなります。</div></li>
+    <li><b>書店員さんの1冊</b>参加店には、書店員さんがすすめる1冊があります。来る前に見えるのは「ヒント」だけ。その店でスタンプを押すと、書名と写真（手書きのカードなど）が見られます。<div class="sub">店のページには、お店のいまのフェアや売場の写真、お店の X・Instagram ものります（お店から届いたもの）。</div></li>
+    <li><b>お店が見つからなかったら</b>店のすぐそばにいるのに見つからないときは、店のページの「お店が見つからない」から教えてください。運営が確かめて、みんなの地図を直します。<b>直ったら +100ページと称号「地図守り」</b>（地図にない店を知らせて載ったら <b>+150ページと称号「開拓者」</b>）。直した店が5店で「地図職人」、20店で「地図名人」。店のページの「閉店している」「名前が違う」からも送れます。<b>地図にない本屋は、地図の右上の「＋」を押すか、地図のその場所を長押し</b>（パソコンは右クリック）するか、めぐり帳の「本屋を知らせる」から知らせられます。</li>
+  </ol>
+
+  <section class="event">
+    <span class="tag">開催中・11月30日まで</span>
+    <h2>SNS推し本大賞2026 大賞フェア参加店舗</h2>
+    全国171店の本屋さんで、SNS推し本大賞2026の大賞フェアを開いています。
+    <ul>
+      <li>参加店でスタンプを押すと、<b>1店ごとに +50ページ</b>。まわればまわるほど、たまります（同じ店は1回まで）</li>
+      <li>3店めぐると、記念の称号「推し本フェアめぐり」</li>
+      <li>地図では、ピンの下に「推し本大賞」の札がついた店です（日本全体まで縮めると、金色の点）</li>
+      <li>ラリーの画面の「参加店の一覧」で、近い順・都道府県順に見られます。めぐった数もここに出ます</li>
+      <li>棚の写真を撮るときは、先に書店員さんに一声かけてください</li>
+    </ul>
+  </section>
+
+  <h2>記録を守るために</h2>
+  <div class="box">
+    記録はスマホの中だけに残ります（名前もメールアドレスもいりません）。
+    <ul>
+      <li><b>ホーム画面に追加</b>して、アイコンから開くと、記録が消えにくくなります。<br><span class="sub">iPhone：Safari の共有ボタン（四角に上向きの矢印）→「ホーム画面に追加」<br>Android：Chrome のメニュー（︙）→「ホーム画面に追加」<br>X・Instagram・LINE などのアプリから開いたときは、先に Safari（Android は Chrome）で開き直してください。アプリの中では記録が残りにくく、ホーム画面にも置けません。</span></li>
+      <li>スマホを替えるとき・iPhone で Safari からアイコンに移すときは、設定 →「引き継ぎコード」でコードを出し、移した先の最初の画面（または設定の「コードで受け取る」）で入れてください。</li>
+    </ul>
+  </div>
+
+  <h2>お願い</h2>
+  <div class="box">
+    <ul>
+      <li>歩きながら画面を見ない。運転中は使わない。</li>
+      <li>お店では、店の方やほかのお客さんの迷惑にならないように。</li>
+      <li>音は最初「なし」です。鳴らしたいときは、設定の「音」をオンに（マナーモードのときは鳴らないようにしています）。</li>
+      <li>写真を撮るときは、先にお店の方に一声。</li>
+      <li><b>スタンプは、本めぐりの中だけのもの</b>です。お店の公式のスタンプではないので、お店の方に「スタンプはどこ？」と聞かなくて大丈夫です。</li>
+    </ul>
+  </div>
+
+  <h2>お出かけの前に</h2>
+  <div class="box">
+    店の情報は、地図データ（OpenStreetMap）・各社の公式の店の一覧・みなさんの報告から作っています。閉店やお休み、移転が間に合っていないことがあります。
+    <ul>
+      <li>店のページの上の印で、どのくらい確かかがわかります：<b>✔ 店が確かめた／最近スタンプが押された／公式一覧で確かめた</b>、<b>△ 地図データだけ</b></li>
+      <li>遠くの店や「△ 地図データだけ」の店へ行くときは、Googleマップで営業時間を見てからお出かけください。</li>
+    </ul>
+  </div>
+
+  <h2>よくある質問</h2>
+  <div class="box faq">
+    <p><b>記録が消えてしまいました</b><br>記録はスマホの中だけにあります。iPhone の Safari で開いているだけだと、しばらく開かないうちに消えることがあります。ホーム画面に追加して、アイコンから開いてください。前に「書き出す」をしていれば、設定の「読み込む」で戻せます。</p>
+    <p><b>ホーム画面に追加したら、記録が0になりました（iPhone）</b><br>iPhone では、Safari とホーム画面のアイコンとで、記録の置き場所が別です。Safari の本めぐりの設定で「引き継ぎコード」を出し、アイコンの本めぐりの最初の画面（または設定の「コードで受け取る」）で入れてください。移したあとは、アイコンから開いてください。</p>
+    <p><b>X や Instagram から開きました</b><br>SNSのアプリの中で開くと、記録が残りにくく、ホーム画面にも置けません。画面の「…」から「ブラウザで開く」などを選んで、Safari（Android は Chrome）で開いてください。もう遊んだ記録は、引き継ぎコードで移せます。</p>
+    <p><b>プライベートブラウズ（シークレットモード）で開いています</b><br>閉じると、記録がすべて消えます。ふつうの画面で開いて、ホーム画面に追加してください。</p>
+    <p><b>スマホを替えます</b><br>前のスマホの設定で「引き継ぎコード」を出し、新しいスマホの最初の画面（または設定）でコードを入れてください。24時間のうちに1回だけ使えます。</p>
+    <p><b>位置が取れません／スタンプが押せません</b><br>スマホの設定で、ブラウザ（Safari・Chrome）の位置情報を「許可」にしてください。店から120mの中に入ると押せます。建物の中では位置がずれることがあるので、少し待つか、入口のあたりで押してください。</p>
+    <p><b>お店がありませんでした</b><br>ごめんなさい。店のそばにいるときは、店のページの「お店が見つからない」から教えてください。みんなの地図を直します。</p>
+    <p><b>お店の方へ</b><br>書店員さんの1冊やフェアをのせたい、のせないでほしい、などは、本めぐりの運営（meguri@tsunagubooks.co.jp）にご連絡ください。載せるのは無料です。どのお店でも「参加店」になれます。<a href="terms.html">利用規約</a>に、お店の方への約束を書いています。</p>
+  </div>
+
+  <div class="end"><a class="open" href="./">本めぐりをひらく</a></div>
+  <p class="note">本めぐり　https://meguri.tsunagubooks.com/　<a href="privacy.html">プライバシーポリシー</a>　<a href="terms.html">利用規約</a></p>
+</main>
+</body>
+</html>

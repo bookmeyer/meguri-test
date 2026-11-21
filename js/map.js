@@ -1,0 +1,299 @@
+// 地図（MapLibre）。店はピンの絵で表示し、固まり（クラスタ）でまとめ、状態は feature-state で軽く更新する
+import { MAP_SKINS, STYLE_DARK, STYLE_LIGHT, TERRITORY_M, RANGE_M } from './config.js?v=0.33.1';
+import { emit, circlePoly } from './util.js?v=0.33.1';
+import { POS } from './position.js?v=0.33.1';
+
+export const M = { map: null, ready: false, theme: 'light' };
+let storesGeo = { type: 'FeatureCollection', features: [] };
+let territoryGeo = { type: 'FeatureCollection', features: [] };
+let meGeo = { type: 'FeatureCollection', features: [] };
+let bound = false;
+const HIT_LAYERS = ['stores', 'stores-stamped', 'stores-near', 'stores-fair', 'ev-tag', 'ev-dot', 'clusters', 'reads']; // 押せるもの（地図の下地より先に受ける）
+let readsGeo = { type: 'FeatureCollection', features: [] }; // 読んだ場所（v0.15.0）
+const stateCache = new Map(); // id → 最後に送った状態
+let handlers = {};
+// ---- ピンの絵（canvasで描く。種類：plain ふつう／used 古書店／rare 秘境／stamped 押した／near 射程内／lib 図書館） ----
+// v0.9 ポップ・ラリー：白いふち＋墨の輪郭の「シール」。本屋＝朱／古書店＝茶／秘境＝墨に檸檬の星／図書館＝空／押した店＝若草にチェック／射程内＝朱に檸檬の光の輪
+const PIN = { plain: ['#FF6A48', '#FFFFFF'], used: ['#B9794A', '#FFFFFF'], rare: ['#1B1B1B', '#FFD447'], stamped: ['#4FC07A', '#FFFFFF'], near: ['#FF6A48', '#FFFFFF'], lib: ['#2F9BFF', '#FFFFFF'] };
+const EDGE = '#1B1B1B';
+function starPath(g, cx, cy, R, r) { for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5; const rr = i % 2 ? r : R; const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr; if (i) g.lineTo(x, y); else g.moveTo(x, y); } g.closePath(); }
+export function pinCanvas(kind, s = 2) {
+  const halo = kind === 'near'; const W = halo ? 64 : 44, H = halo ? 72 : 56; const ox = halo ? 10 : 0, oy = halo ? 16 : 0;
+  const c = document.createElement('canvas'); c.width = W * s; c.height = H * s; const g = c.getContext('2d'); g.scale(s, s);
+  const [fill, glyph] = PIN[kind] || PIN.plain; g.lineJoin = 'round'; g.lineCap = 'round';
+  if (halo) { // 檸檬の光の輪（16の角）。動かない
+    g.beginPath(); for (let i = 0; i < 16; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 8; const rr = i % 2 ? 22 : 28; const x = 32 + Math.cos(a) * rr, y = 37 + Math.sin(a) * rr; if (i) g.lineTo(x, y); else g.moveTo(x, y); } g.closePath();
+    g.fillStyle = '#FFD447'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = EDGE; g.stroke();
+  }
+  const path = () => { g.beginPath(); g.moveTo(22 + ox, 53 + oy); g.bezierCurveTo(16 + ox, 42 + oy, 6 + ox, 33 + oy, 6 + ox, 21 + oy); g.arc(22 + ox, 21 + oy, 16, Math.PI, 0); g.bezierCurveTo(38 + ox, 33 + oy, 28 + ox, 42 + oy, 22 + ox, 53 + oy); g.closePath(); };
+  path(); g.lineWidth = 5; g.strokeStyle = '#FFFFFF'; g.stroke(); // シールの白いふち
+  path(); g.fillStyle = fill; g.fill(); g.lineWidth = 1.8; g.strokeStyle = EDGE; g.stroke();
+  const cx = 22 + ox, cy = 21 + oy;
+  if (kind === 'stamped') { g.strokeStyle = glyph; g.lineWidth = 3.2; g.beginPath(); g.moveTo(cx - 6.5, cy + 0.5); g.lineTo(cx - 1.5, cy + 5.5); g.lineTo(cx + 7, cy - 4.5); g.stroke(); }
+  else if (kind === 'rare') { g.fillStyle = glyph; g.beginPath(); starPath(g, cx, cy + 0.5, 8, 3.6); g.fill(); }
+  else if (kind === 'lib') { g.fillStyle = glyph; g.beginPath(); g.moveTo(cx - 8, cy - 2); g.lineTo(cx, cy - 7.5); g.lineTo(cx + 8, cy - 2); g.lineTo(cx + 8, cy - 0.5); g.lineTo(cx - 8, cy - 0.5); g.closePath(); g.fill(); g.fillRect(cx - 7, cy + 1, 2.6, 6.5); g.fillRect(cx - 1.3, cy + 1, 2.6, 6.5); g.fillRect(cx + 4.4, cy + 1, 2.6, 6.5); g.fillRect(cx - 8, cy + 8, 16, 1.6); }
+  else { g.fillStyle = glyph; bookPath(g, cx, cy); g.fill(); } // 開いた本（v0.14.5：2つの四角だと一時停止の印に見えたので、ページが外へ反った形に）
+  return c;
+}
+// 開いた本の形：真ん中の背に少しすきま、上のふちは背から外へ反り上がり、下のふちは背で下がる
+function bookPath(g, cx, cy) {
+  g.beginPath();
+  for (const s of [-1, 1]) { g.moveTo(cx + s * 0.9, cy - 3.6); g.quadraticCurveTo(cx + s * 4.6, cy - 7, cx + s * 8.6, cy - 5.6); g.lineTo(cx + s * 8.6, cy + 5.4); g.quadraticCurveTo(cx + s * 4.6, cy + 4, cx + s * 0.9, cy + 7); g.closePath(); }
+}
+const pinImage = (kind) => { const c = pinCanvas(kind); return c.getContext('2d').getImageData(0, 0, c.width, c.height); };
+export const pinDataURL = (kind, s = 3) => pinCanvas(kind, s).toDataURL();
+function markImage() { // 行きたい（檸檬のハート）
+  const W = 26, s = 2; const c = document.createElement('canvas'); c.width = W * s; c.height = W * s; const g = c.getContext('2d'); g.scale(s, s);
+  const heart = () => { g.beginPath(); g.moveTo(13, 22); g.bezierCurveTo(5, 16, 3, 12, 3, 9); g.bezierCurveTo(3, 5.5, 6, 3.5, 8.5, 3.5); g.bezierCurveTo(10.5, 3.5, 12.2, 4.6, 13, 6.2); g.bezierCurveTo(13.8, 4.6, 15.5, 3.5, 17.5, 3.5); g.bezierCurveTo(20, 3.5, 23, 5.5, 23, 9); g.bezierCurveTo(23, 12, 21, 16, 13, 22); g.closePath(); };
+  g.lineJoin = 'round'; heart(); g.lineWidth = 4; g.strokeStyle = '#FFFFFF'; g.stroke(); heart(); g.fillStyle = '#FFD447'; g.fill(); g.lineWidth = 1.6; g.strokeStyle = EDGE; g.stroke();
+  return g.getImageData(0, 0, W * s, W * s);
+}
+function fairMarkImage() { // フェア中の店（青い旗。v0.26.0）
+  const W = 26, s = 2; const c = document.createElement('canvas'); c.width = W * s; c.height = W * s; const g = c.getContext('2d'); g.scale(s, s);
+  g.lineWidth = 2; g.strokeStyle = EDGE; g.lineJoin = 'round'; g.beginPath(); g.moveTo(6, 24); g.lineTo(6, 3); g.stroke();
+  g.beginPath(); g.moveTo(7, 3.5); g.lineTo(23, 8.5); g.lineTo(7, 14); g.closePath(); g.fillStyle = '#2F6FD6'; g.fill(); g.stroke();
+  return g.getImageData(0, 0, W * s, W * s);
+}
+function partRingImage() { // 参加店の朱の二重丸（v0.27.0）。ピンと同じ「下のまん中」を合わせると、ピンの頭のまわりに輪がくる
+  const W = 52, H = 60, s = 2, cx = 26, cy = 25; const c = document.createElement('canvas'); c.width = W * s; c.height = H * s; const g = c.getContext('2d'); g.scale(s, s);
+  g.beginPath(); g.arc(cx, cy, 21.8, 0, Math.PI * 2); g.lineWidth = 6.5; g.strokeStyle = '#FFFFFF'; g.stroke(); // 二重丸のあいだの白（地図の色に負けないように）
+  for (const r of [19.2, 24]) { g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.lineWidth = 2.4; g.strokeStyle = '#FF6A48'; g.stroke(); }
+  g.beginPath(); g.arc(cx, cy, 25.3, 0, Math.PI * 2); g.lineWidth = 0.9; g.strokeStyle = EDGE; g.stroke();
+  return g.getImageData(0, 0, W * s, H * s);
+}
+function pickMarkImage() { // 書店員さんの1冊の店（白い丸に朱の開いた本。v0.11。v0.27.0 からは地図では使わない＝参加店の二重丸にまとめた）
+  const W = 26, s = 2; const c = document.createElement('canvas'); c.width = W * s; c.height = W * s; const g = c.getContext('2d'); g.scale(s, s);
+  g.beginPath(); g.arc(13, 13, 10.5, 0, Math.PI * 2); g.fillStyle = '#FFFFFF'; g.fill(); g.lineWidth = 1.6; g.strokeStyle = EDGE; g.stroke();
+  const page = (x) => { g.beginPath(); g.moveTo(x, 9); g.quadraticCurveTo(x + 3.4, 7.2, x + 6.8, 9); g.lineTo(x + 6.8, 17.4); g.quadraticCurveTo(x + 3.4, 15.6, x, 17.4); g.closePath(); g.fillStyle = '#FF6A48'; g.fill(); g.lineWidth = 1.2; g.lineJoin = 'round'; g.strokeStyle = EDGE; g.stroke(); };
+  page(6.2); page(13);
+  return g.getImageData(0, 0, W * s, W * s);
+}
+function readMarkImage() { // 読んだ場所＝しおり（v0.24.0：しおりをはさんだ所に立てる。桃色は v0.15.0 の丸と同じ。図書館のピン＝空と見分けるため）
+  const W = 22, H = 30, s = 2; const c = document.createElement('canvas'); c.width = W * s; c.height = H * s; const g = c.getContext('2d'); g.scale(s, s);
+  g.beginPath(); g.moveTo(3.5, 2); g.lineTo(18.5, 2); g.lineTo(18.5, 27.5); g.lineTo(11, 21.5); g.lineTo(3.5, 27.5); g.closePath();
+  g.fillStyle = '#FF7AB6'; g.fill(); g.lineWidth = 1.7; g.lineJoin = 'round'; g.strokeStyle = EDGE; g.stroke();
+  g.beginPath(); g.arc(11, 7.5, 2.2, 0, Math.PI * 2); g.fillStyle = '#FFFFFF'; g.fill(); g.lineWidth = 1.3; g.stroke();
+  return g.getImageData(0, 0, W * s, H * s);
+}
+const fs = (k, def = 0) => ['coalesce', ['feature-state', k], def];
+// ---- 開催中のイベントの参加店（対象をしぼったイベントだけ。v0.18.1）：ピンの下に札（枠の名前）、縮めて店が固まっているときは点 ----
+// 前は店の点のまわりの薄い輪だけで、ピンに隠れて見えなかった（ぶっくまさん 11/3「その店舗だけ地図上で目立たせることもできてませんね」）
+let evGeo = { type: 'FeatureCollection', features: [] };
+let evStyle = { color: '#FFD447', ink: EDGE }, evKey = '';
+const inkOn = (hex) => { const n = parseInt(hex.slice(1), 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) > 150 ? EDGE : '#FFFFFF'; }; // 札の地の色に合う字の色
+function evTagImage(color) { // 札：角の丸い板に墨のふち。字の長さに合わせて横にのびる（EV_TAG の stretchX）。roundRect は古い iPhone にないので arcTo で描く
+  const W = 24, H = 20, s = 2, r = 7, x0 = 1.5, y0 = 1.5, x1 = W - 1.5, y1 = H - 1.5; const c = document.createElement('canvas'); c.width = W * s; c.height = H * s; const g = c.getContext('2d'); g.scale(s, s);
+  g.beginPath(); g.moveTo(x0 + r, y0); g.arcTo(x1, y0, x1, y1, r); g.arcTo(x1, y1, x0, y1, r); g.arcTo(x0, y1, x0, y0, r); g.arcTo(x0, y0, x1, y0, r); g.closePath();
+  g.fillStyle = color; g.fill(); g.lineWidth = 1.8; g.strokeStyle = EDGE; g.stroke();
+  return g.getImageData(0, 0, W * s, H * s);
+}
+const EV_TAG = { pixelRatio: 2, stretchX: [[18, 30]], stretchY: [[17, 23]], content: [12, 8, 36, 32] }; // 画像の点（48×40）で
+// list：[{ i, la, lo, done }]（done＝このイベントでもう押した店）。style：{ color, label }（いちばん上の開催中のイベントの枠）
+export function setEventStores(list, style) {
+  const color = style && /^#[0-9A-Fa-f]{6}$/.test(style.color || '') ? style.color : '#FFD447'; const label = String((style && style.label) || 'イベント').slice(0, 12);
+  const key = color + '|' + label + '|' + list.map((s) => s.i + (s.done ? '+' : '')).join(','); if (key === evKey) return; evKey = key; // 変わったときだけ描き直す
+  const recolor = color !== evStyle.color; evStyle = { color, ink: inkOn(color) };
+  evGeo = { type: 'FeatureCollection', features: list.map((s) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [s.lo, s.la] }, properties: { id: s.i, done: s.done ? 1 : 0, lb: label } })) };
+  if (!M.ready || !M.map.getSource('evstores')) return;
+  if (recolor) { M.map.updateImage('ev-tag', evTagImage(color)); M.map.setPaintProperty('ev-dot', 'circle-color', ['case', ['==', ['get', 'done'], 1], PIN.stamped[0], color]); M.map.setPaintProperty('ev-tag', 'text-color', evStyle.ink); }
+  M.map.getSource('evstores').setData(evGeo);
+}
+// ---- 自分のアイコン（現在地に出す。写真は端末の中だけ） ----
+let avatar = null; // { blue: ImageData, purple: ImageData }
+const loadImg = (src) => new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; });
+function ringImage(im, color) {
+  const W = 60, s = 2; const c = document.createElement('canvas'); c.width = W * s; c.height = W * s; const g = c.getContext('2d'); g.scale(s, s);
+  g.save(); g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 6; g.shadowOffsetY = 2; g.beginPath(); g.arc(30, 30, 25, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill(); g.restore();
+  g.save(); g.beginPath(); g.arc(30, 30, 22, 0, Math.PI * 2); g.clip(); g.drawImage(im, 8, 8, 44, 44); g.restore();
+  g.lineWidth = 3.5; g.strokeStyle = color; g.beginPath(); g.arc(30, 30, 24, 0, Math.PI * 2); g.stroke();
+  return g.getImageData(0, 0, W * s, W * s);
+}
+function avatarLayer(map) {
+  if (!avatar) return;
+  for (const k of ['blue', 'purple']) { const name = 'me-avatar-' + k; if (map.hasImage(name)) map.updateImage(name, avatar[k]); else map.addImage(name, avatar[k], { pixelRatio: 2 }); }
+  if (!map.getLayer('me-avatar')) map.addLayer({ id: 'me-avatar', type: 'symbol', source: 'me', filter: ['==', ['get', 'k'], 'me'], layout: { 'icon-image': ['case', ['==', ['get', 'fake'], 1], 'me-avatar-purple', 'me-avatar-blue'], 'icon-size': 1, 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+  else map.setLayoutProperty('me-avatar', 'visibility', 'visible');
+}
+export async function setAvatar(dataUrl) {
+  if (!dataUrl) { avatar = null; if (M.ready && M.map.getLayer('me-avatar')) M.map.setLayoutProperty('me-avatar', 'visibility', 'none'); return; }
+  try { const im = await loadImg(dataUrl); avatar = { blue: ringImage(im, '#2F9BFF'), purple: ringImage(im, '#A86CFF') }; } catch (e) { avatar = null; return; }
+  if (M.ready) avatarLayer(M.map);
+}
+function addLayers() {
+  const map = M.map;
+  for (const k of Object.keys(PIN)) if (!map.hasImage('pin-' + k)) map.addImage('pin-' + k, pinImage(k), { pixelRatio: 2 });
+  if (!map.hasImage('mark-want')) map.addImage('mark-want', markImage(), { pixelRatio: 2 });
+  if (!map.hasImage('mark-part')) map.addImage('mark-part', partRingImage(), { pixelRatio: 2 });
+  if (!map.hasImage('mark-fair')) map.addImage('mark-fair', fairMarkImage(), { pixelRatio: 2 });
+  if (!map.hasImage('mark-shiori')) map.addImage('mark-shiori', readMarkImage(), { pixelRatio: 2 });
+  map.addSource('territory', { type: 'geojson', data: territoryGeo });
+  map.addLayer({ id: 'territory-fill', type: 'fill', source: 'territory', paint: { 'fill-color': '#4FC07A', 'fill-opacity': ['interpolate', ['linear'], ['coalesce', ['get', 'rank'], 1], 1, 0.14, 5, 0.3] } });
+  map.addLayer({ id: 'territory-line', type: 'line', source: 'territory', paint: { 'line-color': '#4FC07A', 'line-opacity': 0.8, 'line-width': 1.5, 'line-dasharray': [2, 1.5] } });
+  // 読んだ場所：移動読書の点線（店のピンより下）。しおりと、はじめた所の点は店のピンより上（v0.24.0。下だとピンに埋もれて見えなかった）
+  map.addSource('reads', { type: 'geojson', data: readsGeo });
+  map.addLayer({ id: 'reads-line', type: 'line', source: 'reads', filter: ['==', ['geometry-type'], 'LineString'], layout: { 'line-cap': 'round' }, paint: { 'line-color': '#FF7AB6', 'line-width': 3, 'line-dasharray': [0.1, 2.2], 'line-opacity': 0.9 } });
+  map.addSource('me', { type: 'geojson', data: meGeo });
+  map.addLayer({ id: 'me-acc', type: 'fill', source: 'me', filter: ['==', ['get', 'k'], 'acc'], paint: { 'fill-color': '#2F9BFF', 'fill-opacity': 0.12 } });
+  map.addLayer({ id: 'me-range', type: 'line', source: 'me', filter: ['==', ['get', 'k'], 'range'], paint: { 'line-color': '#2F9BFF', 'line-width': 1.5, 'line-dasharray': [2, 2], 'line-opacity': 0.85 } });
+  map.addSource('stores', { type: 'geojson', data: storesGeo, promoteId: 'id', cluster: true, clusterMaxZoom: 9, clusterRadius: 44 });
+  map.addLayer({ id: 'clusters', type: 'circle', source: 'stores', filter: ['has', 'point_count'], paint: {
+    'circle-color': ['step', ['get', 'point_count'], '#FFD447', 20, '#FF6A48', 100, '#E04E2E'],
+    'circle-radius': ['step', ['get', 'point_count'], 14, 20, 18, 100, 24, 400, 30],
+    'circle-opacity': 1, 'circle-stroke-width': 2.5, 'circle-stroke-color': '#1B1B1B' } });
+  map.addLayer({ id: 'cluster-count', type: 'symbol', source: 'stores', filter: ['has', 'point_count'], layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-font': ['Noto Sans Bold'], 'text-size': 12, 'text-allow-overlap': true }, paint: { 'text-color': '#1B1B1B' } });
+  const unc = ['!', ['has', 'point_count']];
+  // 開催中のイベントの参加店（v0.18.1）：縮めて店が固まっているあいだは、固まりの上に点（押した店は若草）
+  if (!map.hasImage('ev-tag')) map.addImage('ev-tag', evTagImage(evStyle.color), EV_TAG);
+  map.addSource('evstores', { type: 'geojson', data: evGeo });
+  map.addLayer({ id: 'ev-dot-halo', type: 'circle', source: 'evstores', maxzoom: 10, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 7.5, 9, 10], 'circle-color': '#FFFFFF' } }); // 白いふち（店の固まりの檸檬色の上でも見分けられるように）
+  map.addLayer({ id: 'ev-dot', type: 'circle', source: 'evstores', maxzoom: 10, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4, 9, 6.5], 'circle-color': ['case', ['==', ['get', 'done'], 1], PIN.stamped[0], evStyle.color], 'circle-stroke-width': 1.6, 'circle-stroke-color': EDGE } });
+  map.addLayer({ id: 'feat-ring', type: 'circle', source: 'stores', filter: unc, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 10, 12, 15, 15, 22], 'circle-color': '#A86CFF', 'circle-opacity': ['*', 0.12, fs('feat')], 'circle-stroke-color': '#A86CFF', 'circle-stroke-width': 2, 'circle-stroke-opacity': ['*', 0.9, fs('feat')] } });
+  map.addLayer({ id: 'stores-halo', type: 'circle', source: 'stores', filter: unc, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 8, 12, 12, 15, 18], 'circle-color': '#FF6A48', 'circle-opacity': ['*', 0.16, ['min', 1, fs('st')]] } });
+  map.addLayer({ id: 'near-pulse', type: 'circle', source: 'stores', filter: unc, paint: { 'circle-radius': 16, 'circle-color': '#FFD447', 'circle-opacity': ['*', 0.3, fs('near')] } });
+  const sz = ['interpolate', ['linear'], ['zoom'], 8, 0.5, 12, 0.66, 15, 0.9];
+  const sym = (image, size) => ({ 'icon-image': image, 'icon-size': size, 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true });
+  map.addLayer({ id: 'stores-part', type: 'symbol', source: 'stores', filter: ['all', unc, ['==', ['get', 'pt'], 1]], layout: sym('mark-part', sz) }); // 参加店の二重丸（ピンの下。v0.27.0）
+  // 下から順：ふつうのピン（押した・射程内は透明に）→ 押したピン → 射程内のピン → 行きたい☆
+  map.addLayer({ id: 'stores', type: 'symbol', source: 'stores', filter: unc, layout: sym(['case', ['==', ['get', 'l'], 1], 'pin-lib', ['==', ['get', 'r'], 3], 'pin-rare', ['==', ['get', 'u'], 1], 'pin-used', 'pin-plain'], sz), paint: { 'icon-opacity': ['case', ['any', ['==', fs('stamp'), 1], ['==', fs('near'), 1]], 0, ['==', fs('st'), 0], 0.92, 1] } });
+  map.addLayer({ id: 'stores-stamped', type: 'symbol', source: 'stores', filter: unc, layout: sym('pin-stamped', sz), paint: { 'icon-opacity': ['case', ['all', ['==', fs('stamp'), 1], ['!=', fs('near'), 1]], 1, 0] } });
+  map.addLayer({ id: 'stores-near', type: 'symbol', source: 'stores', filter: unc, layout: sym('pin-near', ['interpolate', ['linear'], ['zoom'], 8, 0.6, 12, 0.8, 15, 1.05]), paint: { 'icon-opacity': fs('near') } });
+  map.addLayer({ id: 'stores-want', type: 'symbol', source: 'stores', filter: unc, layout: { 'icon-image': 'mark-want', 'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 15, 0.8], 'icon-anchor': 'bottom-left', 'icon-offset': [10, -34], 'icon-allow-overlap': true, 'icon-ignore-placement': true }, paint: { 'icon-opacity': fs('want') } });
+  map.addLayer({ id: 'stores-fair', type: 'symbol', source: 'stores', filter: ['==', ['get', 'fr'], 1], minzoom: 10, layout: { 'icon-image': 'mark-fair', 'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.6, 15, 0.9], 'icon-anchor': 'bottom-left', 'icon-offset': [6, -40], 'icon-allow-overlap': true, 'icon-ignore-placement': true } }); // フェア中（v0.26.0）
+  map.addLayer({ id: 'reads-start', type: 'circle', source: 'reads', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'k'], 'start']], paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 2.5, 15, 4.5], 'circle-color': '#FF7AB6', 'circle-stroke-color': EDGE, 'circle-stroke-width': 1.4 } });
+  map.addLayer({ id: 'reads', type: 'symbol', source: 'reads', filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'k'], 'at']], layout: { 'icon-image': 'mark-shiori', 'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.7, 15, 1.1], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+  // 札（ピンの先の下）。ほかの印（行きたい＝右上・書店員さんの1冊＝左上）と重ならない場所
+  map.addLayer({ id: 'ev-tag', type: 'symbol', source: 'evstores', minzoom: 10, layout: { 'text-field': ['get', 'lb'], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 10, 9, 15, 12], 'text-anchor': 'top', 'text-offset': [0, 0.5], 'text-allow-overlap': true, 'text-ignore-placement': true, 'icon-image': 'ev-tag', 'icon-text-fit': 'both', 'icon-text-fit-padding': [3, 7, 2, 7], 'icon-allow-overlap': true, 'icon-ignore-placement': true }, paint: { 'text-color': evStyle.ink } });
+  map.addLayer({ id: 'me-dot', type: 'circle', source: 'me', filter: ['==', ['get', 'k'], 'me'], paint: { 'circle-radius': 9, 'circle-color': ['case', ['==', ['get', 'fake'], 1], '#A86CFF', '#FFFFFF'], 'circle-stroke-width': 2.5, 'circle-stroke-color': '#1B1B1B' } });
+  avatarLayer(map); // 自分のアイコンがあれば、現在地の点の上に
+  if (!bound) { bound = true; // 押したときの受け口は1回だけ（v0.16.0：明・暗を切りかえるたびに増えていた）
+  // しおりを押したとき（v0.24.0：しおりは店のピンより上に描くので、重なったら見えているしおりを先に。だから店より先に登録する。前は店が先）
+  map.on('click', 'reads', (e) => { if (e.originalEvent._hit) return; const f = e.features && e.features[0]; if (!f) return; e.originalEvent._hit = true; handlers.onReadClick && handlers.onReadClick(f.properties); });
+  for (const id of ['stores', 'stores-stamped', 'stores-near', 'stores-fair', 'ev-tag', 'ev-dot']) {
+    map.on('click', id, (e) => { if (e.originalEvent._hit) return; const f = e.features && e.features[0]; if (f) { e.originalEvent._hit = true; handlers.onStoreClick && handlers.onStoreClick(f.properties.id); } });
+    map.on('mouseenter', id, () => { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', id, () => { map.getCanvas().style.cursor = ''; });
+  }
+  map.on('click', 'clusters', (e) => { if (e.originalEvent._hit) return; const f = e.features && e.features[0]; if (!f) return; e.originalEvent._hit = true; map.getSource('stores').getClusterExpansionZoom(f.properties.cluster_id, (err, z) => { if (!err) map.easeTo({ center: f.geometry.coordinates, zoom: Math.min(z + 0.5, 16) }); }); });
+  map.on('mouseenter', 'clusters', () => { map.getCanvas().style.cursor = 'pointer'; }); map.on('mouseleave', 'clusters', () => { map.getCanvas().style.cursor = ''; });
+  }
+  // 保存していた状態を入れ直す（スタイルを替えたときも）
+  for (const [id, st] of stateCache) map.setFeatureState({ source: 'stores', id }, st);
+}
+// 地図にもともと出ている店・お寺などの印は消す（本屋・図書館のピンと紛れるため）。駅とバス停の印は残す
+function hideBasePoi() { for (const id of ['poi_r1', 'poi_r7', 'poi_r20']) { try { if (M.map.getLayer(id)) M.map.setLayoutProperty(id, 'visibility', 'none'); } catch (e) {} } }
+// 地図の下地を「ポップ」に合わせる（明るいときだけ）：ふつうはクリームの地・白い細い道・檸檬の大通り・空色の水・若草の公園。着せ替え（v0.15.2）で色を選べる（MAP_SKINS）
+let mapSkin = MAP_SKINS.cream;
+export function setMapSkin(name) { mapSkin = Object.hasOwn(MAP_SKINS, name || '') ? MAP_SKINS[name] : MAP_SKINS.cream; if (M.ready) tintBase(); }
+function tintBase() {
+  if (M.theme !== 'light') return; const map = M.map, c = mapSkin; const set = (id, prop, v) => { try { if (map.getLayer(id)) map.setPaintProperty(id, prop, v); } catch (e) {} };
+  set('background', 'background-color', c.bg); set('landuse_residential', 'fill-color', c.res); set('building', 'fill-color', c.bld); set('building-3d', 'fill-extrusion-color', c.bld);
+  for (const id of ['landuse_pitch', 'landuse_track', 'landuse_cemetery']) set(id, 'fill-color', c.pitch); set('landuse_hospital', 'fill-color', c.hosp); set('landuse_school', 'fill-color', c.school);
+  set('park', 'fill-color', c.green); set('park_outline', 'line-color', c.green); set('landcover_wood', 'fill-color', c.wood); set('landcover_grass', 'fill-color', c.green); set('landcover_sand', 'fill-color', c.sand);
+  set('water', 'fill-color', c.water); for (const id of ['waterway_river', 'waterway_other', 'waterway_tunnel']) set(id, 'line-color', c.water);
+  for (const p of ['road', 'bridge', 'tunnel']) {
+    for (const k of ['minor', 'service_track', 'street', 'path_pedestrian']) set(`${p}_${k}`, 'line-color', c.minor);
+    for (const k of ['minor_casing', 'service_track_casing', 'street_casing', 'path_pedestrian_casing']) set(`${p}_${k}`, 'line-color', c.minorC);
+    for (const k of ['secondary_tertiary', 'trunk_primary', 'link', 'motorway_link']) set(`${p}_${k}`, 'line-color', c.major);
+    for (const k of ['secondary_tertiary_casing', 'trunk_primary_casing', 'link_casing', 'motorway_link_casing']) set(`${p}_${k}`, 'line-color', c.majorC);
+    set(`${p}_motorway`, 'line-color', c.mw); set(`${p}_motorway_casing`, 'line-color', c.mwC);
+    for (const k of ['major_rail', 'major_rail_hatching', 'transit_rail', 'transit_rail_hatching']) set(`${p}_${k}`, 'line-color', c.rail);
+  }
+  for (const id of ['highway-name-minor', 'highway-name-major', 'highway-name-path']) set(id, 'text-color', c.text);
+}
+// 暗いときの地図の色（v0.20.2）。もとの dark は道も川もほぼ黒で、地図が真っ黒に見えた（11/3 ぶっくまさん）。層の名前は OpenFreeMap の dark のもの
+const NIGHT = {
+  bg: '#1D2130', res: '#22273A', bld: '#2C3248', green: '#1E3A2C', water: '#1C3B5E', path: '#3A4058', minor: '#454C66', major: '#5D6683', majorC: '#2A2F42',
+  mw: '#8C7C4C', mwC: '#3A3524', rail: '#5A6078', dash: '#1D2130', line: '#59607A', text: '#D8DBE6', halo: '#1D2130', road: '#B6BBCC', water_t: '#86ACD6', air: '#2B3043',
+};
+function tintNight() {
+  if (M.theme !== 'dark') return; const map = M.map, c = NIGHT; const set = (id, prop, v) => { try { if (map.getLayer(id)) map.setPaintProperty(id, prop, v); } catch (e) {} };
+  set('background', 'background-color', c.bg); set('landuse_residential', 'fill-color', c.res); set('building', 'fill-color', c.bld);
+  for (const id of ['landcover_wood', 'landuse_park']) set(id, 'fill-color', c.green);
+  set('water', 'fill-color', c.water); set('waterway', 'line-color', c.water);
+  for (const id of ['aeroway-area', 'aeroway-taxiway', 'aeroway-runway', 'road_area_pier', 'road_pier']) set(id, id.includes('area') || id.includes('pier') ? (id === 'road_pier' ? 'line-color' : 'fill-color') : 'line-color', c.air);
+  set('highway_path', 'line-color', c.path); set('highway_minor', 'line-color', c.minor);
+  set('highway_major_casing', 'line-color', c.majorC); set('highway_major_inner', 'line-color', c.major); set('highway_major_subtle', 'line-color', c.major);
+  set('highway_motorway_casing', 'line-color', c.mwC); set('highway_motorway_inner', 'line-color', c.mw); set('highway_motorway_subtle', 'line-color', c.mw);
+  for (const id of ['railway_transit', 'railway_minor', 'railway']) set(id, 'line-color', c.rail);
+  for (const id of ['railway_transit_dashline', 'railway_minor_dashline', 'railway_dashline']) set(id, 'line-color', c.dash);
+  for (const id of ['boundary_state', 'boundary_country_z0-4', 'boundary_country_z5-']) set(id, 'line-color', c.line);
+  for (const id of ['highway_name_other', 'highway_name_motorway']) { set(id, 'text-color', c.road); set(id, 'text-halo-color', c.halo); }
+  set('water_name', 'text-color', c.water_t); set('water_name', 'text-halo-color', c.halo);
+  for (const id of ['place_other', 'place_suburb', 'place_village', 'place_town', 'place_city', 'place_city_large', 'place_state', 'place_country_other', 'place_country_minor', 'place_country_major']) { set(id, 'text-color', c.text); set(id, 'text-halo-color', c.halo); }
+}
+function safeAddLayers() { try { hideBasePoi(); tintBase(); tintNight(); addLayers(); } catch (e) { console.error('layers', e); window.__mapErr = String(e && e.message || e); } }
+export function initMap({ center, zoom, theme = 'light', onStoreClick, onMapClick, onDrag, onReadClick, onLongPress }) {
+  handlers = { onStoreClick, onMapClick, onDrag, onReadClick, onLongPress }; M.theme = theme; // onReadClick：しおりを押したとき（v0.24.0：v0.15.0 から渡し忘れていて、押しても何も出なかった）
+  const map = new maplibregl.Map({ container: 'map', style: theme === 'dark' ? STYLE_DARK : STYLE_LIGHT, center, zoom, attributionControl: false, preserveDrawingBuffer: true, maxZoom: 18 });
+  M.map = map;
+  map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
+  map.on('load', () => { safeAddLayers(); M.ready = true; emit('map-ready'); });
+  map.on('click', (e) => { const ls = HIT_LAYERS.filter((id) => map.getLayer(id)); if (ls.length && map.queryRenderedFeatures(e.point, { layers: ls }).length) return; handlers.onMapClick && handlers.onMapClick(e.lngLat); }); // ピンなどの上を押したときは、地図のほうの動きをしない（v0.16.0：お試し歩きでピンを押すと、そこへ移っていた）
+  map.on('dragstart', () => { handlers.onDrag && handlers.onDrag(); });
+  // 長押し（スマホ）・右クリック（パソコン）＝「ここに地図にない本屋がある」（v0.31.0）。指が少し動いたら長押しにしない。重ねて呼ばない
+  let lpT = null, lpAt = null, lpLast = 0;
+  const lpFire = (ll) => { const now = Date.now(); if (now - lpLast < 1200) return; lpLast = now; handlers.onLongPress && handlers.onLongPress(ll); };
+  const lpStop = () => { clearTimeout(lpT); lpT = null; };
+  map.on('touchstart', (e) => { lpStop(); const t = e.originalEvent && e.originalEvent.touches; if (!t || t.length !== 1) return; lpAt = e.point; const ll = e.lngLat; lpT = setTimeout(() => { lpT = null; lpFire(ll); }, 650); });
+  map.on('touchmove', (e) => { if (lpT && lpAt && (Math.abs(e.point.x - lpAt.x) > 10 || Math.abs(e.point.y - lpAt.y) > 10)) lpStop(); });
+  ['touchend', 'touchcancel', 'dragstart', 'zoomstart', 'rotatestart'].forEach((ev) => map.on(ev, lpStop));
+  map.on('contextmenu', (e) => { lpStop(); lpFire(e.lngLat); });
+  map.on('error', (e) => { console.warn('map', e && e.error && e.error.message); });
+  return map;
+}
+export function setTheme(theme) {
+  if (!M.map || theme === M.theme) return; M.theme = theme; M.ready = false;
+  M.map.once('style.load', () => { safeAddLayers(); M.ready = true; emit('map-ready'); resize(); });
+  M.map.setStyle(theme === 'dark' ? STYLE_DARK : STYLE_LIGHT, { diff: false }); // 差分更新だと 'style.load' が来ず、自作の層が戻らない
+}
+export function setStores(stores) {
+  storesGeo = { type: 'FeatureCollection', features: stores.map((s) => ({ type: 'Feature', id: s.i, geometry: { type: 'Point', coordinates: [s.lo, s.la] }, properties: { id: s.i, r: s.k == null ? (s.demo ? 3 : 2) : (s.k === 0 ? 3 : s.k <= 6 ? 2 : 1), u: s.u ? 1 : 0, l: s.t === 'l' ? 1 : 0, custom: s.custom ? 1 : 0, demo: s.demo ? 1 : 0, pt: s.part && s.part.fresh ? 1 : 0, fr: s.shop && s.shop.fairs ? 1 : 0 } })) };
+  if (M.ready) M.map.getSource('stores').setData(storesGeo);
+}
+export function setStates(next) { // Map<id, {stamp, near, feat, want, st}>
+  for (const [id, st] of next) {
+    const prev = stateCache.get(id);
+    if (prev && prev.stamp === st.stamp && prev.near === st.near && prev.feat === st.feat && prev.want === st.want && prev.st === st.st) continue;
+    stateCache.set(id, st); if (M.ready) M.map.setFeatureState({ source: 'stores', id }, st);
+  }
+}
+// 押した店のまわりを塗る。常連度が高い店ほど広く・濃く（s.rad と s.rank）
+let terrKey = '';
+export function setTerritory(stores) { const key = stores.map((s) => `${s.i}:${s.rank || 1}`).join(','); if (key === terrKey) return; terrKey = key; /* 変わっていなければ描き直さない（v0.16.0） */ territoryGeo = { type: 'FeatureCollection', features: stores.map((s) => ({ type: 'Feature', geometry: { type: 'Polygon', coordinates: circlePoly(s.lo, s.la, s.rad || TERRITORY_M) }, properties: { rank: s.rank || 1 } })) }; if (M.ready) M.map.getSource('territory').setData(territoryGeo); }
+// 読んだ場所（v0.15.0・v0.24.0）：spots＝[{ id, at:[lat,lon]＝しおりをはさんだ所, p0・p1＝移動読書のはじめとおわり（ほかは null）, label }]
+export function setReads(spots) {
+  const pt = (p, props) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [p[1], p[0]] }, properties: props });
+  readsGeo = { type: 'FeatureCollection', features: spots.flatMap((r) => [...(r.p0 && r.p1 ? [{ type: 'Feature', geometry: { type: 'LineString', coordinates: [[r.p0[1], r.p0[0]], [r.p1[1], r.p1[0]]] }, properties: { id: r.id } }, pt(r.p0, { id: r.id, k: 'start' })] : []), pt(r.at, { id: r.id, k: 'at', label: r.label })]) };
+  if (M.ready && M.map.getSource('reads')) M.map.getSource('reads').setData(readsGeo);
+}
+export function setMe(POS) {
+  meGeo = POS.lat == null ? { type: 'FeatureCollection', features: [] } : { type: 'FeatureCollection', features: [
+    { type: 'Feature', geometry: { type: 'Polygon', coordinates: circlePoly(POS.lon, POS.lat, Math.min(POS.acc || 0, 500)) }, properties: { k: 'acc' } },
+    { type: 'Feature', geometry: { type: 'Polygon', coordinates: circlePoly(POS.lon, POS.lat, RANGE_M) }, properties: { k: 'range' } },
+    { type: 'Feature', geometry: { type: 'Point', coordinates: [POS.lon, POS.lat] }, properties: { k: 'me', fake: POS.fake ? 1 : 0 } }] };
+  if (M.ready) M.map.getSource('me').setData(meGeo);
+}
+// 射程内の光の輪は動かさない（v0.13.1）。前は毎コマ setPaintProperty で feature-state の式を変えていて、そのたびに店のタイルが作り直しになり、
+// iPhone と同じ WebKit では作り直しが終わらずピンが出なかった（電池にもよくない）。光はいまの 'near-pulse' と 'stores-near' の止まった輪だけ
+export function flyTo(lon, lat, zoom, opts = {}) { if (!M.map) return; M.map.flyTo(Object.assign({ center: [lon, lat], zoom: Math.max(M.map.getZoom(), zoom), speed: 1.2 }, opts)); }
+export function jumpTo(lon, lat, zoom) { if (M.map) M.map.jumpTo({ center: [lon, lat], zoom }); }
+export function easeTo(lon, lat) { if (M.map) M.map.easeTo({ center: [lon, lat], duration: 600 }); }
+// いくつかの点が入るように地図を合わせる（1冊の旅の「地図で見る」。v0.24.0）。pts＝[[lat,lon], …]
+export function fitPoints(pts) {
+  if (!M.map || !pts || !pts.length) return;
+  if (pts.length === 1) { M.map.easeTo({ center: [pts[0][1], pts[0][0]], zoom: Math.max(M.map.getZoom(), 14), duration: 700 }); return; }
+  const b = new maplibregl.LngLatBounds(); pts.forEach((p) => b.extend([p[1], p[0]]));
+  M.map.fitBounds(b, { padding: { top: 150, bottom: 300, left: 50, right: 70 }, maxZoom: 15, duration: 800 });
+}
+export function center() { return M.map ? M.map.getCenter() : { lat: 35.68, lng: 139.77 }; }
+// シェア画像の地図（v0.15.3）：自分の位置・顔写真・読んだ場所を隠し、店のまわりを写してから元に戻す（前は今の画面をそのまま使い、家のまわりや現在地が写ることがあった）
+const PRIVATE_LAYERS = ['me-acc', 'me-range', 'me-dot', 'me-avatar', 'reads', 'reads-line', 'reads-start'];
+export async function snapshotAt(lon, lat, zoom = 15) {
+  if (!M.ready) return null; const map = M.map; const cam = { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+  const vis = PRIVATE_LAYERS.filter((id) => map.getLayer(id)).map((id) => [id, map.getLayoutProperty(id, 'visibility') || 'visible']);
+  try {
+    vis.forEach(([id]) => map.setLayoutProperty(id, 'visibility', 'none')); map.jumpTo({ center: [lon, lat], zoom, bearing: 0, pitch: 0 });
+    await new Promise((res) => { let done = false; const fin = () => { if (!done) { done = true; res(); } }; map.once('idle', fin); setTimeout(fin, 2500); });
+    const src = map.getCanvas(); const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; c.getContext('2d').drawImage(src, 0, 0); return c;
+  } catch (e) { return null; } finally { vis.forEach(([id, v]) => { try { map.setLayoutProperty(id, 'visibility', v); } catch (e) {} }); map.jumpTo(cam); }
+}
+export function resize() { if (!M.map) return; const r = () => { try { M.map.resize(); } catch (e) {} }; r(); setTimeout(r, 60); setTimeout(r, 400); }

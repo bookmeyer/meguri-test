@@ -1,0 +1,187 @@
+// 設定の画面と、そこから開くもの：見た目・着せ替え・アイコン・ハンドルネーム・参加コード・送るもののお知らせ・記録を守る・Googleマップの★
+import { SKINS, MAP_SKINS, APP_VER, TRIAL_ON, PROFILE_ON, POLICY_VER } from './config.js?v=0.33.1';
+import { openProfile, profileSummary } from './profile_ui.js?v=0.33.1';
+import { openAvatarPicker } from './setup_ui.js?v=0.33.1';
+import { openGiveCode, openTakeCode } from './transfer_ui.js?v=0.33.1';
+import { homeTip, inAppName } from './start_ui.js?v=0.33.1';
+import { $, esc, fmtDist, icon, $$, mobileOS, isStandalone, emit, todayISO } from './util.js?v=0.33.1';
+import { S, save, parseImport, replace, reset, exportJSON } from './state.js?v=0.33.1';
+import { sfx } from './audio.js?v=0.33.1';
+import { POS } from './position.js?v=0.33.1';
+import { addCustom, STORES, DATA_DATE, rebuild, unhideAll } from './data.js?v=0.33.1';
+import * as MAP from './map.js?v=0.33.1';
+import * as E from './events.js?v=0.33.1';
+import * as GI from './gimport.js?v=0.33.1';
+import { openModal, closeModal, toast, refreshHud, switchView, confirmBox } from './ui.js?v=0.33.1';
+import { applyMapStates, updateNear, updateAreaChip, setTrialUI } from './map_ui.js?v=0.33.1';
+
+// ---------- Googleマップの★を読み込む ----------
+export function googleHelp() {
+  openModal(`<h2>Googleマップの★を読み込む</h2>
+    <p class="hint">Googleマップで★（スター）や保存リストに入れた本屋を、このアプリの「行きたい」にまとめて入れます。</p>
+    <ol class="steps"><li><a href="https://takeout.google.com/" target="_blank" rel="noopener">Google データエクスポート（Takeout）</a>を開きます</li><li>「選択をすべて解除」を押し、「マップ（マイプレイス）」と「保存済み」にだけチェックを入れます</li><li>いちばん下の「次のステップ」→「エクスポートを作成」。準備ができるとメールが届きます</li><li>届いたzipを開くと、★は「Saved Places.json」（マップ（マイプレイス）の中）か、「保存済み」フォルダの「スター付き」のCSVに入っています。ほかの保存リストもCSVで入っています</li><li>設定の「Googleマップの★」→「読み込む」で、そのファイルを選びます（いくつでも選べます）</li></ol>
+    <div class="note">Googleマップと自動でつなぐ口はGoogleが用意していないため、ファイルで受け渡します。ファイルはこの端末の中で読むだけで、どこにも送りません。ファイル名は時期によって少し違うことがあります。</div>
+    <div class="actions"><button class="btn ghost wide" id="gh-close">閉じる</button></div>`);
+  $('#gh-close').onclick = closeModal;
+}
+export async function importGoogleFiles(files) {
+  let places = [], bad = 0;
+  for (const f of files) { try { places = places.concat(GI.parseGoogle(await f.text())); } catch (e) { bad++; } }
+  if (!places.length) { toast(bad ? '読めませんでした（Googleデータエクスポートの .json か .csv を選んでください）' : '場所が見つかりませんでした', 'warn'); return; }
+  const r = GI.matchGoogle(places); const addable = r.misses.filter((p) => p.bookish && p.lat != null); const others = r.misses.filter((p) => !(p.bookish && p.lat != null));
+  openModal(`<h2>Googleマップの保存リスト</h2><p class="hint">${places.length}件のうち、地図にある本屋・図書館 ${r.hits.length}件${addable.length ? `・地図にない本屋らしい店 ${addable.length}件` : ''}</p>
+    ${r.hits.length ? `<div class="list gi">${r.hits.map((h, i) => `<label class="item"><input type="checkbox" data-h="${i}" ${h.want ? 'checked disabled' : 'checked'}><div class="main"><div class="name">${esc(h.st.n)}</div><div class="sub">Google：${esc(h.p.name || '（名前なし）')}${h.d != null ? '・' + fmtDist(h.d) : ''}${h.want ? '・すでに行きたい' : ''}</div></div></label>`).join('')}</div>` : ''}
+    ${addable.length ? `<h3>地図にない本屋らしい店</h3><p class="hint">チェックした店を自分の地図に足して「行きたい」にします（この端末だけ）。</p><div class="list gi">${addable.map((p, i) => `<label class="item"><input type="checkbox" data-a="${i}" checked><div class="main"><div class="name">${esc(p.name)}</div><div class="sub">${esc(p.address || '')}</div></div></label>`).join('')}</div>` : ''}
+    ${others.length ? `<details class="chap"><summary><span>地図に見当たらない ${others.length}件</span></summary><div class="muted small">${others.slice(0, 120).map((p) => esc(p.name || '（名前なし）')).join('、')}${others.length > 120 ? '…' : ''}</div></details>` : ''}
+    <div class="actions"><button class="btn primary wide" id="gi-ok" ${r.hits.length || addable.length ? '' : 'disabled'}>${icon('heart')}行きたいに入れる</button><button class="btn ghost wide" id="gi-cancel">やめる</button></div>`);
+  $('#gi-cancel').onclick = closeModal;
+  $('#gi-ok').onclick = () => {
+    let n = 0;
+    $$('#modal-box [data-h]').forEach((cb) => { const h = r.hits[+cb.dataset.h]; if (cb.checked && !cb.disabled && !S.wants.includes(h.st.i)) { S.wants.push(h.st.i); n++; } });
+    let k = 0; $$('#modal-box [data-a]').forEach((cb) => { if (!cb.checked) return; const p = addable[+cb.dataset.a]; const st = { i: 'u' + Date.now().toString(36) + (k++), n: p.name, la: +p.lat.toFixed(5), lo: +p.lon.toFixed(5), a: p.address || undefined }; addCustom(st); S.wants.push(st.i); n++; });
+    S.gimport = { at: Date.now(), n }; save(); MAP.setStores(STORES); applyMapStates(); updateNear(); refreshHud(); closeModal(); updateAreaChip();
+    toast(`${n}店を「行きたい」に入れました`, 'ok');
+  };
+}
+// ---------- 設定 ----------
+export function renderSettings() {
+  const s = S.settings; const hid = Object.keys(S.hidden);
+  $('#settings-pane').innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><button class="icon-btn" id="st-back" aria-label="戻る" style="transform:rotate(180deg)">${icon('chevron')}</button><h2 style="margin:0">設定</h2></div>
+    <div class="setting"><div><div class="l">見た目</div><div class="s">明るい見た目が基本です。「自動」にすると端末の設定に合わせます</div></div><div class="seg3" id="st-theme">${['auto', 'light', 'dark'].map((t) => `<button data-t="${t}" class="${s.theme === t ? 'active' : ''}">${{ auto: '自動', light: '明', dark: '暗' }[t]}</button>`).join('')}</div></div>
+    <div class="setting"><div><div class="l">道順（Googleマップ）</div><div class="s">道順を開くときの、はじめの移動手段です。Googleマップの画面で、あとから変えられます</div></div><div class="seg3" id="st-travel">${['transit', 'walking', 'driving'].map((t) => `<button data-t="${t}" class="${(s.travel || 'transit') === t ? 'active' : ''}">${{ transit: '電車・バス', walking: '歩き', driving: '車' }[t]}</button>`).join('')}</div></div>
+    <div class="setting stack"><div><div class="l">着せ替え</div><div class="s">画面の色と地図の色を選べます（明るい見た目のとき）。ピンとスタンプの色は変わりません</div>
+      <div class="skins"><div class="sk-h">画面</div>${Object.entries(SKINS).map(([k, x]) => `<button class="skin${(s.skin || 'remon') === k ? ' on' : ''}" data-skin="${k}"><i style="background:linear-gradient(135deg,${x.sw[0]} 50%,${x.sw[1]} 50%)"></i>${esc(x.name)}</button>`).join('')}
+      <div class="sk-h">地図</div>${Object.entries(MAP_SKINS).map(([k, x]) => `<button class="skin${(s.mapSkin || 'cream') === k ? ' on' : ''}" data-mapskin="${k}"><i style="background:linear-gradient(135deg,${x.bg} 50%,${x.water} 50%)"></i>${esc(x.name)}</button>`).join('')}</div></div></div>
+    <div class="setting"><div><div class="l">ハンドルネーム</div><div class="s">${S.settings.handle ? esc(S.settings.handle) : 'まだありません。見出し・プロフィール・シェアする画像に出ます'}</div></div><button class="btn" id="st-name">${S.settings.handle ? '変える' : '付ける'}</button></div>
+    <div class="setting"><div><div class="l">参加コード</div><div class="s">${s.joinCode ? `「${esc(s.joinCode)}」で参加中（お試しの人だけのイベントが見えます）` : 'お試しなどで渡されたコードを入れると、その人たちだけのイベントが見えます'}</div></div><button class="btn" id="st-join">${s.joinCode ? '変える' : '入れる'}</button></div>
+    <div class="setting"><div><div class="l">運営に送るもの</div><div class="s">参加の人数と読書の機能の使われ方を数えるのと、書店員さんの手書きのカードを開くための記録（店の番号・日時・読んだ長さなど）を送ります。位置・本の名前・名前・メモは送りません${(S.outbox || []).length ? `（まだ送っていない記録 ${S.outbox.length}件）` : ''}</div></div><button class="btn" id="st-send-info">くわしく</button></div>
+    <div class="setting"><div><div class="l">自分のアイコン</div><div class="s">地図の現在地に出ます。絵か、スマホの写真から選べます。写真はこの端末の中だけに置き、どこにも送りません</div></div><div class="avatar-ctl">${s.avatar ? `<img class="avatar" src="${esc(s.avatar)}" alt="">` : ''}<button class="btn" id="st-avatar">${s.avatar ? '替える' : '選ぶ'}</button></div></div>
+    <div class="setting"><div><div class="l">図書館も地図に出す</div><div class="s">全国の公共図書館（約3,500館）。大学・学校の図書館は入っていません</div></div><button class="switch ${s.showLib !== false ? 'on' : ''}" id="st-lib" role="switch" aria-checked="${s.showLib !== false}" aria-label="図書館も地図に出す"></button></div>
+    <div class="setting"><div><div class="l">行きたい店のお知らせ</div><div class="s">行きたい店に近づくと、地図の下でお知らせします（アプリを開いて現在地を追っているあいだ）</div></div><button class="switch ${s.wantAlert !== false ? 'on' : ''}" id="st-want" role="switch" aria-checked="${s.wantAlert !== false}" aria-label="行きたい店のお知らせ"></button></div>
+    ${s.wantAlert !== false ? `<div class="setting"><div><div class="l">お知らせする距離</div><div class="s">この距離に入ったときと、500mに入ったとき</div></div><div class="seg3" id="st-want-m">${[1000, 2000, 5000].map((m) => `<button data-m="${m}" class="${(s.wantAlertM || 2000) === m ? 'active' : ''}">${m / 1000}km</button>`).join('')}</div></div>` : ''}
+    <div class="setting"><div><div class="l">出会った本に世代と性別を添える</div><div class="s">本のカードを作ったとき、本の番号（ISBN）と月に、プロフィールの世代と性別を添えて送ります（「この本は30代の女性に多い」を数えるため）。店・日付・端末の番号はつけないので、誰のカードかはわかりません</div></div><button class="switch ${s.meetAttr !== false ? 'on' : ''}" id="st-attr" role="switch" aria-checked="${s.meetAttr !== false}" aria-label="出会った本に世代と性別を添える"></button></div>
+    <div class="setting"><div><div class="l">読んだ場所を残す</div><div class="s">「ここから読む」を押した所と「しおりをはさむ」を押した所を、この端末の中だけに残します（位置は送りません。運営に届くのは「移動読書」などの種類と距離だけ）。物語に「○○書店のそばで」「移動読書」と書き、地図にしおりの印を出します</div></div><button class="switch ${s.readPlace !== false ? 'on' : ''}" id="st-readplace" role="switch" aria-checked="${s.readPlace !== false}" aria-label="読んだ場所を残す"></button></div>
+    <div class="setting stack"><div><div class="l">Googleマップの★</div><div class="s">Googleマップで★を付けた本屋を「行きたい」にまとめて入れます${S.gimport ? `（前回 ${S.gimport.n}店）` : ''}</div></div><div class="avatar-ctl"><button class="btn ghost" id="st-ghelp">読み込み方</button><label class="btn">読み込む<input type="file" id="st-gimport" accept=".json,.csv,application/json,text/csv" multiple hidden></label></div></div>
+    <div class="setting"><div><div class="l">音</div><div class="s">スタンプを押したとき・カードができたとき。最初は「なし」です。マナーモードのときは鳴らないようにしています（近づいたときや、歩いて巻が進んだときは鳴りません）</div></div><button class="switch ${s.sound ? 'on' : ''}" id="st-sound" role="switch" aria-checked="${s.sound}" aria-label="音"></button></div>
+    ${TRIAL_ON ? `<div class="setting"><div><div class="l">お試し歩き</div><div class="s">地図を押した場所に自分がいることにする（作る人が試す用）</div></div><button class="switch ${POS.fake ? 'on' : ''}" id="st-trial" role="switch" aria-checked="${POS.fake}" aria-label="お試し歩き"></button></div>` : ''}
+    ${PROFILE_ON ? `<h3>プロフィール</h3><div class="setting"><div><div class="l">プロフィール</div><div class="s">世代・性別・本の買い方など。答えなくても使えます。${esc(profileSummary())}</div></div><button class="btn" id="st-profile">入れる・変える</button></div>` : ''}
+    <h3>記録</h3>
+    ${mobileOS() || inAppName() ? `<div class="setting"><div><div class="l">記録を守る</div><div class="s">${isStandalone() ? 'ホーム画面のアイコンから開いています。記録が消えにくい開き方です' : inAppName() ? 'アプリの中で開いています。Safari（Android は Chrome）で開き直すと、記録が残りやすくなります' : 'ホーム画面に追加して、アイコンから開くと、記録が消えにくくなります'}</div></div>${isStandalone() ? '' : '<button class="btn" id="st-home">やり方</button>'}</div>` : ''}
+    <div class="setting"><div><div class="l">書き出す</div><div class="s">（読んだ場所・最後にいた場所も入ります。人に渡さないでください）スタンプ・カード・ページをファイルに</div></div><button class="btn" id="st-export">書き出す</button></div>
+    <div class="setting"><div><div class="l">読み込む</div><div class="s">書き出したファイルから置き換え</div></div><label class="btn">読み込む<input type="file" id="st-import" accept="application/json" hidden></label></div>
+    <div class="setting stack"><div><div class="l">引き継ぎコード</div><div class="s">機種変更や、ホーム画面のアイコンに移すときに。記録を暗号にして24時間だけ預け、新しい端末でコードを入れて受け取ります（運営も中身を読めません）</div></div><div class="avatar-ctl"><button class="btn" id="st-tc-give">コードを出す</button><button class="btn" id="st-tc-take">コードで受け取る</button></div></div>
+    <div class="setting"><div><div class="l">店の情報の直し</div><div class="s">${hid.length || Object.keys(S.renames || {}).length ? `閉店 ${hid.length}件・名前の直し ${Object.keys(S.renames || {}).length}件（この端末の地図。書き出しに含まれます）` : 'まだありません（店のページの「閉店している」「名前が違う」から）'}。「運営にも知らせる」を選ぶと、確かめてから、みんなの地図も直します${(S.repOut || []).length ? `（まだ送れていない報告 ${S.repOut.length}件）` : ''}</div></div><button class="btn" id="st-unhide" ${hid.length || Object.keys(S.renames || {}).length ? '' : 'disabled'}>戻す</button></div>
+    <div class="setting"><div><div class="l">すべて消す</div><div class="s">この端末の記録を消します。戻せません</div></div><button class="btn danger" id="st-clear">消す</button></div>
+    <div id="st-area"></div>
+    <h3>このアプリについて</h3>
+    <div class="setting"><div><div class="l">端末の確認</div><div class="s">位置・カメラ・保存が使えるか</div></div><button class="btn" id="st-diag">確認</button></div>
+    <div id="st-diag-out"></div>
+    <div class="setting"><div><div class="l">画面の案内</div><div class="s">地図の画面のボタンを、順に指さして説明します</div></div><button class="btn" id="st-tour">もう一度見る</button></div>
+    <div class="setting"><div><div class="l">使い方</div><div class="s">はじめての方へ。スタンプの押し方・本のカード・イベントなど</div></div><a class="btn" href="howto.html" target="_blank" rel="noopener">見る</a></div>
+    <div class="setting"><div><div class="l">プライバシーポリシー</div><div class="s">運営に届くもの・使い方・消し方</div></div><a class="btn" href="privacy.html" target="_blank" rel="noopener">見る</a></div>
+    <div class="setting"><div><div class="l">利用規約</div><div class="s">使うときのきまり・お店の方への約束（v0.26.0）</div></div><a class="btn" href="terms.html" target="_blank" rel="noopener">見る</a></div>
+    <div class="setting"><div><div class="l">端末の番号</div><div class="s">名前のないランダムな番号です。送った記録やプロフィールを消してほしいときに、お問い合わせに添えてください：<span class="mono">${esc(E.deviceId())}</span></div></div></div>
+    <div class="about">本めぐり v${APP_VER}。本屋をめぐって、本とめぐりあう。本屋と図書館の位置ゲームです。<br>歩きながら画面を見ないでください。運転中は使わないでください。お店では、店の方やほかのお客さんの迷惑にならないようにお願いします。<br>位置（座標）は、この端末の中で距離を出すためだけに使い、送りません。参加の人数を数えるために、スタンプを押した店の番号・日時・店の近くで押したか・お試し歩きか・どのイベントかを、名前のない、ランダムな番号といっしょに、本をつなぐ（tsunagubooks.com）へ送ります。読書の機能の使われ方を見るために、読書の日時（何時まで）・長さ・読んだ場所の種類・移動読書の距離も送ります（本の名前と読んだ場所は送りません。くわしくはプライバシーポリシー）。そのほかの記録は、この端末の中だけに残ります。<br>画面を出すために、Google Fonts（文字）・jsDelivr（地図のプログラム）・OpenFreeMap（地図の絵。見ている範囲）へ、本を調べるときは openBD（その本の番号）へつなぎます。このとき、端末のIPアドレスやブラウザの種類が相手に届きます。<br><br>
+      店の位置：© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors（ODbL）。地図：<a href="https://openfreemap.org/" target="_blank" rel="noopener">OpenFreeMap</a>・<a href="https://openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a>。本の情報と表紙：<a href="https://openbd.jp/" target="_blank" rel="noopener">openBD</a>（表紙は紹介のための参照表示で、保存しません）。書名でさがす：<a href="https://ndlsearch.ndl.go.jp/" target="_blank" rel="noopener">国立国会図書館サーチ</a>の API（国立国会図書館の書誌データ・<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>。著者名の表し方を整えて出しています。送るのは、さがす言葉だけです）。地図にない本屋を住所で知らせるとき：国土地理院の住所検索（入れた住所だけを送ります）。住所の目安（「○○ 付近」）：<a href="https://github.com/geolonia/japanese-addresses" target="_blank" rel="noopener">Geolonia 住所データ</a>（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>。国土交通省 位置参照情報をもとに作成。店の位置にいちばん近い町丁目です）。地図の描画：MapLibre GL JS。文字：Google Fonts。<br>
+      店のデータは ${DATA_DATE} 時点の OpenStreetMap（有志が作る地図）で、閉店や名前の変更が反映されていない店があります。店のページの「閉店している」で外せ、「名前が違う」で直せます（この端末だけ。記録の書き出しに含まれます）。</div>`;
+  $('#st-back').onclick = () => switchView('map');
+  $$('#st-travel button').forEach((b) => b.addEventListener('click', () => { s.travel = b.dataset.t; save(); document.documentElement.dataset.travel = s.travel; renderSettings(); }));
+  $$('#st-theme button').forEach((b) => b.addEventListener('click', () => { s.theme = b.dataset.t; save(); applyTheme(); renderSettings(); }));
+  $('#st-avatar').onclick = () => openAvatarPicker(renderSettings); // 絵か画像から（v0.21.0。アイコンは必須なので外さない）
+  $('#st-lib').onclick = () => { s.showLib = s.showLib === false; save(); rebuild(); MAP.setStores(STORES); applyMapStates(); updateNear(); refreshHud(); toast(s.showLib ? '図書館を地図に出しました' : '図書館を地図から隠しました'); renderSettings(); };
+  $('#st-want').onclick = () => { s.wantAlert = s.wantAlert === false; save(); renderSettings(); };
+  $('#st-attr').onclick = () => { s.meetAttr = s.meetAttr === false; if (s.meetAttr === false) E.clearAttrs(); save(); renderSettings(); toast(s.meetAttr === false ? '出会った本に世代と性別を添えるのを止めました' : '出会った本に世代と性別を添えます', 'ok'); }; // v0.29.0
+  $$('#st-want-m button').forEach((b) => b.addEventListener('click', () => { s.wantAlertM = +b.dataset.m; save(); renderSettings(); }));
+  $('#st-ghelp').onclick = googleHelp;
+  $('#st-gimport').addEventListener('change', async (e) => { const fs = [...e.target.files]; e.target.value = ''; if (fs.length) await importGoogleFiles(fs); renderSettings(); });
+  $('#st-name').onclick = () => nameModal(renderSettings);
+  $('#st-join').onclick = () => joinModal(renderSettings);
+  $('#st-send-info').onclick = () => { openModal(`<h2>運営に送るもの</h2>${SEND_TEXT}<p class="muted small">本めぐりを使うあいだ、いつも送ります（はじめるときに、プライバシーポリシーに同意していただいています）。<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a></p><div class="actions"><button class="btn primary" id="si-ok">閉じる</button></div>`); $('#si-ok').onclick = closeModal; }; // 参加の記録のオン・オフはなくした（v0.22.2）
+  $('#st-readplace').onclick = () => { s.readPlace = s.readPlace === false; save(); renderSettings(); emit('records'); toast(s.readPlace === false ? '読んだ場所を残すのを止めました（地図の印も消えます）' : '読んだ場所を残すようにしました', 'ok'); }; // 読んだ場所（v0.15.0）
+  $$('#view-settings [data-skin]').forEach((b) => { b.onclick = () => { s.skin = b.dataset.skin; save(); applySkin(); renderSettings(); }; }); // 着せ替え（v0.15.2）
+  $$('#view-settings [data-mapskin]').forEach((b) => { b.onclick = () => { s.mapSkin = b.dataset.mapskin; save(); applySkin(); renderSettings(); toast('地図の色を変えました（地図のタブで見られます）', 'ok'); }; });
+  $('#st-sound').onclick = () => { s.sound = !s.sound; s.soundV23 = 1; /* 自分で選んだ音は、次に開いたときもそのまま */ save(); renderSettings(); if (s.sound) sfx.click(); };
+  $('#st-tour').onclick = () => emit('tour');
+  $('#st-tc-give').onclick = () => openGiveCode();
+  $('#st-tc-take').onclick = () => openTakeCode(renderSettings); // 引き継ぎコード（v0.22.0）
+  if ($('#st-profile')) $('#st-profile').onclick = () => openProfile(renderSettings);
+  if ($('#st-trial')) $('#st-trial').onclick = () => { setTrialUI(!POS.fake); renderSettings(); };
+  $('#st-export').onclick = exportFile;
+  if ($('#st-home')) $('#st-home').onclick = homeTip;
+  $('#st-import').addEventListener('change', async (e) => { const f = e.target.files[0]; if (!f) return; try { const d = parseImport(await f.text()); confirmBox($('#st-area'), `読み込むと、いまの記録（スタンプ${Object.keys(S.stamps).length}・カード${S.cards.length}）は置き換わります。`, () => { replace(d); rebuild(); MAP.setStores(STORES); applyMapStates(); refreshHud(); toast('読み込みました', 'ok'); renderSettings(); }, '置き換える'); } catch (err) { toast('読み込めませんでした（このアプリで書き出したファイルを選んでください）', 'warn'); } e.target.value = ''; });
+  $('#st-unhide').onclick = () => { unhideAll(); save(); MAP.setStores(STORES); applyMapStates(); updateNear(); toast('戻しました', 'ok'); renderSettings(); };
+  $('#st-clear').onclick = () => confirmBox($('#st-area'), 'この端末の記録（スタンプ・訪問・カード・行きたい・追加した店・ページ）をすべて消します。戻せません。', () => { reset(); E.flushSoon(500); rebuild(); MAP.setStores(STORES); applyMapStates(); refreshHud(); toast('消しました'); renderSettings(); });
+  $('#st-diag').onclick = async () => { const out = $('#st-diag-out'); const rows = []; rows.push(['位置', navigator.geolocation ? '使える' : '使えない']); rows.push(['カメラ', navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? '使える' : '使えない']); rows.push(['バーコード読み取り（標準）', 'BarcodeDetector' in window ? 'あり' : 'なし（代わりの部品を使います）']); let storage = '?'; try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); storage = '使える'; } catch (e) { storage = '使えない'; } rows.push(['保存', storage]); rows.push(['https', location.protocol === 'https:' ? 'はい' : 'いいえ（位置とカメラにはhttpsが要ります）']); rows.push(['ホーム画面に追加', window.matchMedia('(display-mode: standalone)').matches ? '追加ずみ' : '未追加']);  rows.push(['共有', navigator.share ? '使える' : '使えない（画像は保存になります）']); out.innerHTML = `<div class="status-card">${rows.map(([k, v]) => `<div><b>${k}</b>：${v}</div>`).join('')}</div>`; };
+}
+export function applyTheme() {
+  const t = S.settings.theme; const dark = t === 'dark' || (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.travel = S.settings.travel || 'transit'; document.documentElement.dataset.theme = dark ? 'dark' : 'light'; applySkin(); MAP.setTheme(dark ? 'dark' : 'light');
+}
+// 着せ替え（v0.15.2。v0.15.3 で正式に）：明るい見た目のときだけ、画面の色の変数を上書きする。地図の色も（明るいときだけ効く）
+export function applySkin() {
+  const el = document.documentElement; const sk = Object.hasOwn(SKINS, S.settings.skin || '') ? SKINS[S.settings.skin] : SKINS.remon;
+  for (const k of new Set(Object.values(SKINS).flatMap((x) => Object.keys(x.v)))) el.style.removeProperty(k);
+  if (el.dataset.theme !== 'dark') for (const [k, v] of Object.entries(sk.v)) el.style.setProperty(k, v);
+  MAP.setMapSkin(S.settings.mapSkin);
+}
+// ---------- 自分のアイコン：選んだ画像を丸く小さく切り抜く（端末の中だけ。どこにも送らない） ----------
+export async function makeAvatar(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    let im; try { im = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (e) { im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; }); }
+    const w = im.width || im.naturalWidth, h = im.height || im.naturalHeight; if (!w || !h) throw new Error('bad image');
+    const N = 160; const cv = document.createElement('canvas'); cv.width = N; cv.height = N; const g = cv.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, N, N); g.beginPath(); g.arc(N / 2, N / 2, N / 2, 0, Math.PI * 2); g.clip();
+    const side = Math.min(w, h); g.drawImage(im, (w - side) / 2, (h - side) / 2, side, side, 0, 0, N, N);
+    let q = 0.86, out = cv.toDataURL('image/jpeg', q); while (out.length > 120000 && q > 0.4) { q -= 0.12; out = cv.toDataURL('image/jpeg', q); }
+    return out;
+  } finally { URL.revokeObjectURL(url); }
+}
+// ---------- ハンドルネーム ----------
+export const cleanHandle = (s) => String(s || '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 20);
+export function nameModal(after) {
+  const cur = S.settings.handle || '';
+  openModal(`<h2>ハンドルネーム</h2><p class="hint">見出し・プロフィール・その日の物語・シェアする画像に出ます。この端末の中だけに残ります。</p>
+    <div class="field"><label for="nm-in">名前（20字まで）</label><input type="text" id="nm-in" maxlength="20" value="${esc(cur)}" placeholder="例：本の虫" autocomplete="nickname"></div>
+    <div class="actions"><button class="btn primary" id="nm-ok">決める</button><button class="btn ghost" id="nm-cancel">やめる</button></div>`);
+  const inp = $('#nm-in'); inp.focus(); inp.select();
+  const finish = (v) => { S.settings.handle = v; save(); closeModal(); refreshHud(); if (after) after(); toast(v ? `「${v}」にしました` : '名前を外しました', 'ok'); };
+  $('#nm-ok').onclick = () => { const v = cleanHandle(inp.value); if (!v) { toast('名前を入れてください', 'warn'); return; } finish(v); };
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#nm-ok').click(); });
+  if ($('#nm-cancel')) $('#nm-cancel').onclick = closeModal;
+}
+// ---------- 参加コード・送るもののお知らせ（v0.10） ----------
+const SEND_TEXT = '<ul class="plain"><li><b>参加の記録</b>：スタンプを押した店の番号と日時、店の近くで押したか・お試し歩きか・どのイベントか（参加の人数を数えるため）</li><li><b>読書と使い方の記録</b>（v0.25.0）：読書をした日時（何時まで）・読んだ長さ・読んだ場所の種類（移動読書／本屋のそば／その場で）・移動読書の距離、本を読み終えた・里帰り・1冊の旅を開いた／シェアした、1日1回「開いた」こと（読書の機能がどう使われているかを見るため）</li><li><b>手書きのカードを開くとき</b>：店の番号（その店で押した記録と照らし合わせるため）</li><li><b>店の情報を知らせるとき</b>（「運営にも知らせる」を選んだときだけ）：店の番号・名前・ひとこと（地図にない店は、その店の場所）</li><li>どれも、名前のない、ランダムな番号といっしょに送ります</li><li><b>出会った本の記録</b>：本のカードを作ったときの店の番号・本の番号（ISBN）・日付。<b>端末の番号はつけません</b></li><li><b>出会った本の世代・性別</b>（設定で止められます）：本の番号（ISBN）・月と、プロフィールの世代・性別。<b>店の番号・日付・端末の番号はつけません</b></li><li><b>送らないもの</b>：位置の座標・移動の道のり・読んだ場所・本の名前・名前・メモ・本のカード</li></ul>';
+export function joinNotice(code) {
+  S.settings.privacyV10 = 1; save();
+  openModal(`<h2>お試しに参加しました</h2><p>参加コード「${esc(code)}」が入りました。お試しの人だけのイベントが、ラリーの画面と地図に出ます。</p>${SEND_TEXT}<div class="actions"><button class="btn primary wide" id="jn-ok">はじめる</button></div>`);
+  $('#jn-ok').onclick = closeModal;
+}
+export function privacyNotice() {
+  S.settings.privacyV10 = 1; save();
+  openModal(`<h2>お知らせ</h2><p>イベント（期間限定のスタンプの枠など）が始まるのにあわせて、参加の人数を数えるための記録を送るようになりました。</p>${SEND_TEXT}<div class="actions"><button class="btn primary" id="pv-ok">わかった</button></div>`);
+  $('#pv-ok').onclick = closeModal;
+}
+// ---------- プライバシーポリシーのお知らせ（v0.20.1）：もう使っている人に一度だけ。「わかった」で同意 ----------
+export function policyNotice(after) {
+  const changed = !!S.settings.policy; // 前の版に同意している人には「変えました」
+  openModal(`<h2>プライバシーポリシーを${changed ? '変えました' : '載せました'}</h2>${changed ? `<ul class="plain">${String(S.settings.policy) < '2026-11-20b' ? '<li><b>9つの質問（プロフィール）</b>は、始めるときか、はじめてスタンプを押した次の日などに答えていただくようにしました</li><li>本めぐりを開いた日に、<b>どこで開いたか</b>（SNSなどのアプリの中・ブラウザ・ホーム画面のアイコン・パソコンのどれか）を添えて送るようにしました。使い始める人が、どこで止まっているかを知るためです</li>' : ''}${String(S.settings.policy) < '2026-11-20' ? '<li>本のカードを作ったとき、<b>本の番号（ISBN）と月に、プロフィールの世代と性別を添えて</b>送るようにしました。店の番号・日付・端末の番号はつけないので、誰のカードかはわかりません。「この本は30代の女性に多い」を数えるためです。設定の「出会った本に世代と性別を添える」で止められます</li>' : ''}${String(S.settings.policy) < '2026-11-19b' ? '<li>本のカードを作ったとき、<b>店の番号・本の番号・日付だけ</b>を、端末の番号をつけずに送るようにしました（誰のカードかは運営にもわかりません）。「この店でこの本に出会った人が○人」を数えるためです</li><li>人数の集計（ひとりが特定されない統計）を、本屋さん・出版社などに、有償または無償で提供することがあると書きました</li><li>利用規約を作りました（使うときのきまり・お店の方への約束）</li>' : ''}${String(S.settings.policy) < '2026-11-19' ? '<li>読書の記録の一部を送るようにしました：読んだ日と時刻（何時まで）・読んだ長さ・読んだ場所の種類（移動読書／本屋のそば／その場で）・移動読書の距離。本を読み終えた・里帰り・1冊の旅を開いた／シェアした、と、1日1回「開いた」ことも。読書の機能がどう使われているかを見るためです</li><li><b>本の名前・読んだ場所・名前は送りません</b></li>' : ''}${String(S.settings.policy) < '2026-11-04b' ? '<li>はじめるときに、ハンドルネーム・アイコン・プロフィールを決めていただきます（プロフィールは、名前以外の答えを統計データとして使います）</li><li>参加の記録（スタンプを押した店と日時など）は、本めぐりを使うあいだ、いつも送ります</li><li>引き継ぎコードで、記録を暗号にして24時間だけ預けられるようにしました</li>' : ''}</ul>` : '<p>運営に届くもの（参加の記録・読書と使い方の記録・店の情報の報告・プロフィール）と、その使い方・持つ期間・消し方をまとめました。</p>'}<p>使い続けると、同意したことになります。</p><p class="muted small">名前・メールアドレス・位置は、これまでどおり送りません。</p><div class="actions"><a class="btn" href="privacy.html" target="_blank" rel="noopener">ポリシー</a><a class="btn" href="terms.html" target="_blank" rel="noopener">利用規約</a><button class="btn primary" id="pol-ok">わかった</button></div>`);
+  $('#pol-ok').onclick = () => { S.settings.policy = POLICY_VER; S.settings.privacyV10 = 1; save(); E.noteOpen(); closeModal(); if (after) after(); };
+}
+// ---------- 記録を守る：ホーム画面に追加（v0.10.1） ----------
+// iPhone の Safari は、しばらく開かないサイトの記録を消すことがある。ホーム画面のアイコンから開けば消えにくい
+// iPhone ではアイコンと Safari で記録の置き場所が別なので、記録がある人には引き継ぎコードを案内する（v0.28.0。前は書き出し→読み込み）
+export function exportFile() {
+  const blob = new Blob([exportJSON()], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `honya-map-${todayISO()}.json`; document.body.appendChild(a); a.click(); a.remove(); toast('書き出しました', 'ok');
+}
+// homeTip（ホーム画面に追加のやり方）は start_ui.js に移した（v0.28.0）
+export function joinModal(after) {
+  const cur = S.settings.joinCode || '';
+  openModal(`<h2>参加コード</h2><p class="hint">お試しなどで渡されたコードを入れると、その人たちだけのイベントが見えます。</p><div class="field"><label for="jc-in">コード（英数字と - _）</label><input type="text" id="jc-in" maxlength="40" value="${esc(cur)}" autocomplete="off" autocapitalize="off"></div><div class="actions"><button class="btn primary" id="jc-ok">決める</button>${cur ? '<button class="btn ghost" id="jc-clear">外す</button>' : '<button class="btn ghost" id="jc-cancel">やめる</button>'}</div>`);
+  const inp = $('#jc-in'); inp.focus();
+  const finish = async (v) => { closeModal(); await E.setJoinCode(v); applyMapStates(); refreshHud(); if (after) after(); toast(v ? `参加コード「${v}」を入れました` : '参加コードを外しました', 'ok'); };
+  $('#jc-ok').onclick = () => { const v = inp.value.trim().toLowerCase(); if (!/^[a-z0-9_-]{2,40}$/.test(v)) { toast('英数字と - _ の2〜40字で入れてください', 'warn'); return; } finish(v); };
+  if ($('#jc-clear')) $('#jc-clear').onclick = () => finish('');
+  if ($('#jc-cancel')) $('#jc-cancel').onclick = closeModal;
+}
