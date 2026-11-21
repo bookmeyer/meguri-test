@@ -1,6 +1,6 @@
 // 設定値（数字はここだけで変える）
 
-export const APP_VER = '0.34.0';
+export const APP_VER = '0.34.1';
 export const STORAGE_KEY = 'honya_map_v3';
 // お試し歩き（地図を押した所にいることにする）：遊ぶ人には出さない（11/3 ぶっくまさん「OFFにしたい」）。作る人が試すときは localStorage の meguri_trial を 1 に
 export const TRIAL_ON = (() => { try { return localStorage.getItem('meguri_trial') === '1'; } catch (e) { return false; } })();
@@ -91,6 +91,12 @@ export const TITLES = [
   { id: 't_mv10', name: '移動読書家', kind: 'moveReads', n: 10 }, { id: 't_dn1', name: '読み終えた', kind: 'done', n: 1 }, { id: 't_st1', name: '本の里帰り', kind: 'sato', n: 1 },
   // E. 続ける・歩く
   { id: 't_w4', name: '四週つづけて', kind: 'streak', n: 4 }, { id: 't_w12', name: '季節をまたいで', kind: 'streak', n: 12 }, { id: 't_pg1000', name: '百キロの本屋旅', kind: 'pages', n: 1000, need: '歩いて1000ページ（100km）' },
+  // G. 実績から移した称号（v0.34.0。11/21 ぶっくまさん「A」：実績を称号にまとめる。同じ条件の称号がもうあるもの〈最初の一歩・本と出会った・出会いの常連・常連・行きつけが三つ・四週つづけて・五つの県〉は、その称号にまとめた）
+  { id: 't_u1', name: '古書の香り', kind: 'used', n: 1, need: '古書店でスタンプ1' }, { id: 't_l3', name: '図書館通い', kind: 'libs', n: 3 }, { id: 't_r1', name: '秘境へ', kind: 'rare', n: 1, need: '★★★のスタンプ1' },
+  { id: 't_f3', name: '推し店めぐり', kind: 'feat', n: 3, need: '今週の推し店でスタンプ3回' }, { id: 't_g10', name: 'ぬし', kind: 'regMax', n: 10 },
+  { id: 't_look30', name: '下見', kind: 'look', n: 30, need: '本屋のページを30店見る' }, { id: 't_ra1', name: 'ラリー制覇', kind: 'rally', n: 1, need: 'ご当地ラリーを1つ' },
+  { id: 't_pg100', name: '百ページ歩いた', kind: 'pages', n: 100, need: '歩いて100ページ（10km）' }, { id: 't_pg300', name: '一冊ぶん歩いた', kind: 'pages', n: 300, need: '歩いて300ページ（30km）' },
+  { id: 't_sh1', name: '見せびらかし', kind: 'share', n: 1, need: 'スタンプなどをシェアする' },
   // F. かくれ称号（もらうまで「？？？（ひみつ）」）
   { id: 't_h_early', name: '朝の本屋', kind: 'early', n: 1, hidden: 1, need: '朝8時より前にスタンプ' }, { id: 't_h_hashigo', name: 'はしご', kind: 'hashigo', n: 3, hidden: 1, need: '1日に3店でスタンプ' }, { id: 't_h_libbook', name: '本屋と図書館', kind: 'libbook', n: 1, hidden: 1, need: '同じ日に本屋と図書館でスタンプ' },
 ];
