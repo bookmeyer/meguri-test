@@ -1,21 +1,21 @@
 // 地図の画面：現在地まわり（射程・いちばん近い店）・ピンの状態・現在地とお試し歩き・店のページ・さがす・店を足す・行きたい店のお知らせ
-import { RANGE_M, TERRITORY_M, PG, TRIAL_ON, PREFS, MAP_CREDIT } from './config.js?v=0.35.4';
-import { $, arrowOf, bearing, icon, fmtDist, esc, dist, $$, emit, fmtDate, gmapDir, stars, gmapPlace, prefOf } from './util.js?v=0.35.4';
-import { S, save } from './state.js?v=0.35.4';
-import { unlock, sfx } from './audio.js?v=0.35.4';
-import { hasPos, POS, startWatch, setTrial, setPos, jumped, setFollow } from './position.js?v=0.35.4';
-import { STORES, BYID, isLib, isFeat, rarityOf, pickOpen, placeWord, bookTitle, stampSVG, rarityText, lookupIsbn, hideStore, renameStore, search, FEAT } from './data.js?v=0.35.4';
-import * as MAP from './map.js?v=0.35.4';
-import * as G from './game.js?v=0.35.4';
-import * as E from './events.js?v=0.35.4';
-import * as J from './journey.js?v=0.35.4';
-import { dirLink, openModal, closeModal, stopLinks, toast, closeSheet, refreshHud, currentView, switchView, syncStatusCard } from './ui.js?v=0.35.4';
-import { startCheckin, shareStampUI } from './checkin_ui.js?v=0.35.4';
-import { startCard } from './card_ui.js?v=0.35.4';
-import * as SH from './shops.js?v=0.35.4';
-import { addReading } from './reading.js?v=0.35.4';
-import { todayISO } from './util.js?v=0.35.4';
-import { xBoxHTML, mountX } from './xembed.js?v=0.35.4';
+import { RANGE_M, TERRITORY_M, PG, TRIAL_ON, PREFS, MAP_CREDIT } from './config.js?v=0.35.5';
+import { $, arrowOf, bearing, icon, fmtDist, esc, dist, $$, emit, fmtDate, gmapDir, stars, gmapPlace, prefOf } from './util.js?v=0.35.5';
+import { S, save } from './state.js?v=0.35.5';
+import { unlock, sfx } from './audio.js?v=0.35.5';
+import { hasPos, POS, startWatch, setTrial, setPos, jumped, setFollow } from './position.js?v=0.35.5';
+import { STORES, BYID, isLib, isFeat, rarityOf, pickOpen, placeWord, bookTitle, stampSVG, rarityText, lookupIsbn, hideStore, renameStore, search, FEAT } from './data.js?v=0.35.5';
+import * as MAP from './map.js?v=0.35.5';
+import * as G from './game.js?v=0.35.5';
+import * as E from './events.js?v=0.35.5';
+import * as J from './journey.js?v=0.35.5';
+import { dirLink, openModal, closeModal, stopLinks, toast, closeSheet, refreshHud, currentView, switchView, syncStatusCard } from './ui.js?v=0.35.5';
+import { startCheckin, shareStampUI } from './checkin_ui.js?v=0.35.5';
+import { startCard } from './card_ui.js?v=0.35.5';
+import * as SH from './shops.js?v=0.35.5';
+import { addReading } from './reading.js?v=0.35.5';
+import { todayISO } from './util.js?v=0.35.5';
+import { xBoxHTML, mountX } from './xembed.js?v=0.35.5';
 
 // ---------- 行きたい店のお知らせ（地図の下に出る帯） ----------
 let waTimer = null;
@@ -144,7 +144,7 @@ function snsHTML(st) {
 const phRow = (ids) => `<div class="ph-row">${ids.map((id) => `<img src="${esc(SH.picUrl(id))}" alt="" loading="lazy" decoding="async" data-ph>`).join('')}</div>`;
 function fairsHTML(st) {
   const fs = (st.shop && st.shop.fairs) || []; if (!fs.length) return '';
-  const one = (f) => `<div class="fair">${f.x ? '<span class="fair-k xk">𝕏 お店の投稿</span>' : '<span class="fair-k">フェア</span>'}<span class="muted small">${f.to ? mdOf(f.to) + 'まで' : ''}${f.from && f.from > todayISO() ? `（${mdOf(f.from)}から）` : ''}</span><div class="fair-t">${esc(f.name)}</div>${f.pics.length ? phRow(f.pics) : ''}${xBoxHTML(f)}${f.place ? `<div class="muted small">${esc(f.place)}</div>` : ''}${f.say ? `<div class="say">${esc(f.say)}</div>` : ''}</div>`;
+  const one = (f) => { const ag = SH.postAge(f); return `<div class="fair${ag && ag.old ? ' old' : ''}">${f.x ? '<span class="fair-k xk">𝕏 お店の投稿</span>' : '<span class="fair-k">フェア</span>'}<span class="muted small">${ag ? ag.text : `${f.to ? mdOf(f.to) + 'まで' : ''}${f.from && f.from > todayISO() ? `（${mdOf(f.from)}から）` : ''}`}</span><div class="fair-t">${esc(f.name)}</div>${f.pics.length ? phRow(f.pics) : ''}${xBoxHTML(f)}${f.place ? `<div class="muted small">${esc(f.place)}</div>` : ''}${f.say ? `<div class="say">${esc(f.say)}</div>` : ''}</div>`; };
   // はじめは3件。4件目からは「もっと見る」（10件まで。v0.35.1。11/22 ぶっくまさん）
   const top = fs.slice(0, 3).map(one).join(''), rest = fs.slice(3);
   return `<div class="shop-sec"><h3>いま行くと、出会えるもの</h3>${top}${rest.length ? `<div class="fair-more" hidden>${rest.map(one).join('')}</div><button class="btn ghost wide fair-more-btn" type="button">もっと見る（あと${rest.length}件）</button>` : ''}</div>`;

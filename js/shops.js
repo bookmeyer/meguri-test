@@ -4,10 +4,10 @@
 //  - 来る前（誰でも）：ヒント・ジャンル・名前の出し方・フェア・売場の写真・店の発信・スタンプの写真（api/shops.php・api/pic.php）
 //  - 来たあと（その店の射程内でスタンプを押した端末だけ）：書名・著者・写真（api/pick.php。端末の番号と店の番号を POST で送る）
 //  - 開いた1冊は、この端末に覚える（S.picks。写真は開いているあいだだけ）。サーバーに届かないときは、前回読んだ中身で動く
-import { S, save } from './state.js?v=0.35.4';
-import { todayISO, emit } from './util.js?v=0.35.4';
-import { setShops, setStampData, pickOpen } from './data.js?v=0.35.4';
-import { apiBase, deviceId, flush } from './events.js?v=0.35.4';
+import { S, save } from './state.js?v=0.35.5';
+import { todayISO, emit } from './util.js?v=0.35.5';
+import { setShops, setStampData, pickOpen } from './data.js?v=0.35.5';
+import { apiBase, deviceId, flush } from './events.js?v=0.35.5';
 
 const CACHE_KEY = 'meguri_shops_v1';
 const STAMP_KEY = 'meguri_stamp_imgs_v1';
@@ -37,6 +37,14 @@ function clean(raw) {
     if (Object.keys(o).length) { if (DAY.test(v.up || '')) o.up = v.up; m.set(id, o); } // up＝この店でいちばん新しい公開の日（サーバー 1.9.3〜）
   }
   return m;
+}
+// X の投稿は「○日前の投稿」（おわりの日は運営が自動で付けた4週間なので出さない）。2週間をこえたら薄く（v0.35.5）
+const DAYMS = 86400000;
+export function postAge(f) {
+  if (!f || !f.x || !/^\d{4}-\d{2}-\d{2}$/.test(f.from || '')) return null;
+  const n = Math.max(0, Math.round((new Date(todayISO() + 'T00:00:00') - new Date(f.from + 'T00:00:00')) / DAYMS));
+  const text = n === 0 ? '今日の投稿' : n === 1 ? '昨日の投稿' : n < 14 ? `${n}日前の投稿` : `${Math.floor(n / 7)}週間前の投稿`;
+  return { n, text, old: n >= 14 };
 }
 export const picUrl = (id) => new URL('pic.php?id=' + id, apiBase()).toString();
 function apply(j) {
