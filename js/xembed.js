@@ -5,8 +5,8 @@
 //  - 押したときに「次からはボタンなしで表示する」を選べる（設定でいつでも戻せる）
 //  - dnt（追跡しないで）を付けて頼む
 //  - 投稿の写真や文をこちらに取り込まない（X の画面のまま）
-import { esc } from './util.js?v=0.35.1';
-import { S, save } from './state.js?v=0.35.1';
+import { esc } from './util.js?v=0.35.2';
+import { S, save } from './state.js?v=0.35.2';
 
 const WIDGETS = 'https://platform.twitter.com/widgets.js';
 let loading = null;
@@ -25,7 +25,7 @@ function loadWidgets() {
   return loading;
 }
 
-/** 押す前の箱（店のページの「いまのフェア」の中） */
+/** 押す前の箱（店のページの「いま行くと、出会えるもの」の中） */
 export function xBoxHTML(f) {
   if (!ok(f.x)) return '';
   return `<div class="xbox" data-x="${esc(f.x)}" data-xu="${esc(f.xu || '')}">

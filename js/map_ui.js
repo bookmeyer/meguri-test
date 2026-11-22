@@ -1,21 +1,21 @@
 // 地図の画面：現在地まわり（射程・いちばん近い店）・ピンの状態・現在地とお試し歩き・店のページ・さがす・店を足す・行きたい店のお知らせ
-import { RANGE_M, TERRITORY_M, PG, TRIAL_ON, PREFS, MAP_CREDIT } from './config.js?v=0.35.1';
-import { $, arrowOf, bearing, icon, fmtDist, esc, dist, $$, emit, fmtDate, gmapDir, stars, gmapPlace, prefOf } from './util.js?v=0.35.1';
-import { S, save } from './state.js?v=0.35.1';
-import { unlock, sfx } from './audio.js?v=0.35.1';
-import { hasPos, POS, startWatch, setTrial, setPos, jumped, setFollow } from './position.js?v=0.35.1';
-import { STORES, BYID, isLib, isFeat, rarityOf, pickOpen, placeWord, bookTitle, stampSVG, rarityText, lookupIsbn, hideStore, renameStore, search, FEAT } from './data.js?v=0.35.1';
-import * as MAP from './map.js?v=0.35.1';
-import * as G from './game.js?v=0.35.1';
-import * as E from './events.js?v=0.35.1';
-import * as J from './journey.js?v=0.35.1';
-import { dirLink, openModal, closeModal, stopLinks, toast, closeSheet, refreshHud, currentView, switchView, syncStatusCard } from './ui.js?v=0.35.1';
-import { startCheckin, shareStampUI } from './checkin_ui.js?v=0.35.1';
-import { startCard } from './card_ui.js?v=0.35.1';
-import * as SH from './shops.js?v=0.35.1';
-import { addReading } from './reading.js?v=0.35.1';
-import { todayISO } from './util.js?v=0.35.1';
-import { xBoxHTML, mountX } from './xembed.js?v=0.35.1';
+import { RANGE_M, TERRITORY_M, PG, TRIAL_ON, PREFS, MAP_CREDIT } from './config.js?v=0.35.2';
+import { $, arrowOf, bearing, icon, fmtDist, esc, dist, $$, emit, fmtDate, gmapDir, stars, gmapPlace, prefOf } from './util.js?v=0.35.2';
+import { S, save } from './state.js?v=0.35.2';
+import { unlock, sfx } from './audio.js?v=0.35.2';
+import { hasPos, POS, startWatch, setTrial, setPos, jumped, setFollow } from './position.js?v=0.35.2';
+import { STORES, BYID, isLib, isFeat, rarityOf, pickOpen, placeWord, bookTitle, stampSVG, rarityText, lookupIsbn, hideStore, renameStore, search, FEAT } from './data.js?v=0.35.2';
+import * as MAP from './map.js?v=0.35.2';
+import * as G from './game.js?v=0.35.2';
+import * as E from './events.js?v=0.35.2';
+import * as J from './journey.js?v=0.35.2';
+import { dirLink, openModal, closeModal, stopLinks, toast, closeSheet, refreshHud, currentView, switchView, syncStatusCard } from './ui.js?v=0.35.2';
+import { startCheckin, shareStampUI } from './checkin_ui.js?v=0.35.2';
+import { startCard } from './card_ui.js?v=0.35.2';
+import * as SH from './shops.js?v=0.35.2';
+import { addReading } from './reading.js?v=0.35.2';
+import { todayISO } from './util.js?v=0.35.2';
+import { xBoxHTML, mountX } from './xembed.js?v=0.35.2';
 
 // ---------- 行きたい店のお知らせ（地図の下に出る帯） ----------
 let waTimer = null;
@@ -144,10 +144,10 @@ function snsHTML(st) {
 const phRow = (ids) => `<div class="ph-row">${ids.map((id) => `<img src="${esc(SH.picUrl(id))}" alt="" loading="lazy" decoding="async" data-ph>`).join('')}</div>`;
 function fairsHTML(st) {
   const fs = (st.shop && st.shop.fairs) || []; if (!fs.length) return '';
-  const one = (f) => `<div class="fair"><span class="fair-k">フェア</span><span class="muted small">${f.to ? mdOf(f.to) + 'まで' : ''}${f.from && f.from > todayISO() ? `（${mdOf(f.from)}から）` : ''}</span><div class="fair-t">${esc(f.name)}</div>${f.pics.length ? phRow(f.pics) : ''}${xBoxHTML(f)}${f.place ? `<div class="muted small">${esc(f.place)}</div>` : ''}${f.say ? `<div class="say">${esc(f.say)}</div>` : ''}</div>`;
+  const one = (f) => `<div class="fair">${f.x ? '<span class="fair-k xk">𝕏 お店の投稿</span>' : '<span class="fair-k">フェア</span>'}<span class="muted small">${f.to ? mdOf(f.to) + 'まで' : ''}${f.from && f.from > todayISO() ? `（${mdOf(f.from)}から）` : ''}</span><div class="fair-t">${esc(f.name)}</div>${f.pics.length ? phRow(f.pics) : ''}${xBoxHTML(f)}${f.place ? `<div class="muted small">${esc(f.place)}</div>` : ''}${f.say ? `<div class="say">${esc(f.say)}</div>` : ''}</div>`;
   // はじめは3件。4件目からは「もっと見る」（10件まで。v0.35.1。11/22 ぶっくまさん）
   const top = fs.slice(0, 3).map(one).join(''), rest = fs.slice(3);
-  return `<div class="shop-sec"><h3>いまのフェア</h3>${top}${rest.length ? `<div class="fair-more" hidden>${rest.map(one).join('')}</div><button class="btn ghost wide fair-more-btn" type="button">もっと見る（あと${rest.length}件）</button>` : ''}</div>`;
+  return `<div class="shop-sec"><h3>いま行くと、出会えるもの</h3>${top}${rest.length ? `<div class="fair-more" hidden>${rest.map(one).join('')}</div><button class="btn ghost wide fair-more-btn" type="button">もっと見る（あと${rest.length}件）</button>` : ''}</div>`;
 }
 // 売場の写真：1枚目は店のページの表紙に（v0.27.0）。ここには2枚目から
 function shelfHTML(st) { const sh = st.shop && st.shop.shelf; if (!sh) return ''; const rest = sh.pics.slice(1); return rest.length || sh.say ? `<div class="shop-sec"><h3>売場の写真</h3>${rest.length ? phRow(rest) : ''}${sh.say ? `<div class="muted small">${esc(sh.say)}</div>` : ''}</div>` : ''; }
