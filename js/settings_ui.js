@@ -1,19 +1,19 @@
 // 設定の画面と、そこから開くもの：見た目・着せ替え・アイコン・ハンドルネーム・参加コード・送るもののお知らせ・記録を守る・Googleマップの★
-import { SKINS, MAP_SKINS, APP_VER, TRIAL_ON, PROFILE_ON, POLICY_VER } from './config.js?v=0.35.3';
-import { openProfile, profileSummary } from './profile_ui.js?v=0.35.3';
-import { openAvatarPicker } from './setup_ui.js?v=0.35.3';
-import { openGiveCode, openTakeCode } from './transfer_ui.js?v=0.35.3';
-import { homeTip, inAppName } from './start_ui.js?v=0.35.3';
-import { $, esc, fmtDist, icon, $$, mobileOS, isStandalone, emit, todayISO } from './util.js?v=0.35.3';
-import { S, save, parseImport, replace, reset, exportJSON } from './state.js?v=0.35.3';
-import { sfx } from './audio.js?v=0.35.3';
-import { POS } from './position.js?v=0.35.3';
-import { addCustom, STORES, DATA_DATE, rebuild, unhideAll } from './data.js?v=0.35.3';
-import * as MAP from './map.js?v=0.35.3';
-import * as E from './events.js?v=0.35.3';
-import * as GI from './gimport.js?v=0.35.3';
-import { openModal, closeModal, toast, refreshHud, switchView, confirmBox } from './ui.js?v=0.35.3';
-import { applyMapStates, updateNear, updateAreaChip, setTrialUI } from './map_ui.js?v=0.35.3';
+import { SKINS, MAP_SKINS, APP_VER, TRIAL_ON, PROFILE_ON, POLICY_VER } from './config.js?v=0.35.4';
+import { openProfile, profileSummary } from './profile_ui.js?v=0.35.4';
+import { openAvatarPicker } from './setup_ui.js?v=0.35.4';
+import { openGiveCode, openTakeCode } from './transfer_ui.js?v=0.35.4';
+import { homeTip, inAppName } from './start_ui.js?v=0.35.4';
+import { $, esc, fmtDist, icon, $$, mobileOS, isStandalone, emit, todayISO } from './util.js?v=0.35.4';
+import { S, save, parseImport, replace, reset, exportJSON } from './state.js?v=0.35.4';
+import { sfx } from './audio.js?v=0.35.4';
+import { POS } from './position.js?v=0.35.4';
+import { addCustom, STORES, DATA_DATE, rebuild, unhideAll } from './data.js?v=0.35.4';
+import * as MAP from './map.js?v=0.35.4';
+import * as E from './events.js?v=0.35.4';
+import * as GI from './gimport.js?v=0.35.4';
+import { openModal, closeModal, toast, refreshHud, switchView, confirmBox } from './ui.js?v=0.35.4';
+import { applyMapStates, updateNear, updateAreaChip, setTrialUI } from './map_ui.js?v=0.35.4';
 
 // ---------- Googleマップの★を読み込む ----------
 export function googleHelp() {
@@ -63,7 +63,7 @@ export function renderSettings() {
     <div class="setting"><div><div class="l">出会った本に世代と性別を添える</div><div class="s">本のカードを作ったとき、本の番号（ISBN）と月に、プロフィールの世代と性別を添えて送ります（「この本は30代の女性に多い」を数えるため）。店・日付・端末の番号はつけないので、誰のカードかはわかりません</div></div><button class="switch ${s.meetAttr !== false ? 'on' : ''}" id="st-attr" role="switch" aria-checked="${s.meetAttr !== false}" aria-label="出会った本に世代と性別を添える"></button></div>
     <div class="setting"><div><div class="l">読んだ場所を残す</div><div class="s">「ここから読む」を押した所と「しおりをはさむ」を押した所を、この端末の中だけに残します（位置は送りません。運営に届くのは「移動読書」などの種類と距離だけ）。物語に「○○書店のそばで」「移動読書」と書き、地図にしおりの印を出します</div></div><button class="switch ${s.readPlace !== false ? 'on' : ''}" id="st-readplace" role="switch" aria-checked="${s.readPlace !== false}" aria-label="読んだ場所を残す"></button></div>
     <div class="setting stack"><div><div class="l">Googleマップの★</div><div class="s">Googleマップで★を付けた本屋を「行きたい」にまとめて入れます${S.gimport ? `（前回 ${S.gimport.n}店）` : ''}</div></div><div class="avatar-ctl"><button class="btn ghost" id="st-ghelp">読み込み方</button><label class="btn">読み込む<input type="file" id="st-gimport" accept=".json,.csv,application/json,text/csv" multiple hidden></label></div></div>
-    <div class="setting"><div><div class="l">お店の X の投稿を表示しない</div><div class="s">店のページの「いま行くと、出会えるもの」には、お店が X に #本めぐり を付けて投稿したものが、X の画面のまま出ます（表示すると、見たことが X に伝わります）。オンにすると表示せず、「X で見る」のリンクだけにします</div></div><button class="switch ${s.xOff ? 'on' : ''}" id="st-xoff" role="switch" aria-checked="${!!s.xOff}" aria-label="お店の X の投稿を表示しない"></button></div>
+    <div class="setting"><div><div class="l">お店の X の投稿を表示しない</div><div class="s">店のページの「いま行くと、出会えるもの」には、お店が X に #本めぐり を付けて投稿したものが、X の画面のまま出ます（表示すると、見たことが X に伝わります）。オンにすると表示せず、「X で見る」のリンクだけにします（お店のスタンプの X のアイコンも出しません）</div></div><button class="switch ${s.xOff ? 'on' : ''}" id="st-xoff" role="switch" aria-checked="${!!s.xOff}" aria-label="お店の X の投稿を表示しない"></button></div>
     <div class="setting"><div><div class="l">音</div><div class="s">スタンプを押したとき・カードができたとき。最初は「なし」です。マナーモードのときは鳴らないようにしています（近づいたときや、歩いて巻が進んだときは鳴りません）</div></div><button class="switch ${s.sound ? 'on' : ''}" id="st-sound" role="switch" aria-checked="${s.sound}" aria-label="音"></button></div>
     ${TRIAL_ON ? `<div class="setting"><div><div class="l">お試し歩き</div><div class="s">地図を押した場所に自分がいることにする（作る人が試す用）</div></div><button class="switch ${POS.fake ? 'on' : ''}" id="st-trial" role="switch" aria-checked="${POS.fake}" aria-label="お試し歩き"></button></div>` : ''}
     ${PROFILE_ON ? `<h3>プロフィール</h3><div class="setting"><div><div class="l">プロフィール</div><div class="s">世代・性別・本の買い方など。答えなくても使えます。${esc(profileSummary())}</div></div><button class="btn" id="st-profile">入れる・変える</button></div>` : ''}
