@@ -5,8 +5,8 @@
 //  - 押したときに「次からはボタンなしで表示する」を選べる（設定でいつでも戻せる）
 //  - dnt（追跡しないで）を付けて頼む
 //  - 投稿の写真や文をこちらに取り込まない（X の画面のまま）
-import { esc } from './util.js?v=0.35.0';
-import { S, save } from './state.js?v=0.35.0';
+import { esc } from './util.js?v=0.35.1';
+import { S, save } from './state.js?v=0.35.1';
 
 const WIDGETS = 'https://platform.twitter.com/widgets.js';
 let loading = null;
@@ -50,12 +50,17 @@ async function show(box) {
 
 /** 店のページを出したあとに呼ぶ。ボタンを動かし、「次からは表示」を選んでいれば、すぐに出す */
 export function mountX(root) {
+  if (root.id === 'sheet-body') delete root.dataset.xon; // 店のページを開き直したら、また押すまで出さない
   root.querySelectorAll('.xbox[data-x]').forEach((box) => {
-    if (S.settings.xShow) { show(box); return; }
+    if (box.closest('.fair-more[hidden]')) return; // 「もっと見る」の中は、開いたときに（v0.35.1）
+    if (S.settings.xShow || box.closest('[data-xon]')) { show(box); return; }
     const b = box.querySelector('.xbtn'); if (!b) return;
     b.addEventListener('click', () => {
-      const keep = box.querySelector('.xkeep input'); if (keep && keep.checked) { S.settings.xShow = true; save(); }
-      show(box);
+      const keep = box.querySelector('.xkeep input');
+      if (keep && keep.checked) { S.settings.xShow = true; save(); }
+      // 1回押せば、この店のページで見えている X の投稿は、まとめて表示（1件ずつ押さなくてよい）
+      root.querySelectorAll('.xbox[data-x]').forEach((x) => { if (!x.closest('.fair-more[hidden]')) show(x); });
+      root.dataset.xon = '1'; // このあと「もっと見る」で開いた分も、そのまま表示
     });
   });
 }
