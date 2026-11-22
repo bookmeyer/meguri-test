@@ -8,7 +8,7 @@
 import { esc } from './util.js?v=0.35.2';
 import { S, save } from './state.js?v=0.35.2';
 
-const WIDGETS = 'https://platform.twitter.com/widgets.js';
+const WIDGETS = (() => { try { const q = location.search; if (/[?&]dummy=1/.test(q)) sessionStorage.setItem('meguri_dummy', '1'); if (/[?&]dummy=0/.test(q)) sessionStorage.removeItem('meguri_dummy'); return sessionStorage.getItem('meguri_dummy') === '1'; } catch (e) { return false; } })() ? './js/dummy_widgets.js' : 'https://platform.twitter.com/widgets.js'; // テスト版だけ：ダミーデータ
 let loading = null;
 const ok = (id) => /^\d{1,20}$/.test(String(id || ''));
 const urlOf = (id, u) => `https://x.com/${encodeURIComponent(u || 'i')}/status/${encodeURIComponent(id)}`;

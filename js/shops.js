@@ -50,7 +50,7 @@ export async function loadShops() {
   try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (c && c.j && !SHOP.ok) apply(c.j); } catch (e) {}
   try {
     const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 10000);
-    const r = await fetch(new URL('shops.php', apiBase()).toString(), { cache: 'no-cache', signal: ctl.signal }); clearTimeout(tm);
+    const r = await fetch((TEST_DUMMY ? './data/dummy_shops.json' : new URL('shops.php', apiBase()).toString()), { cache: 'no-cache', signal: ctl.signal }); clearTimeout(tm);
     if (!r.ok) return false;
     const j = await r.json(); if (!j || !j.ok) return false;
     apply(j); SHOP.ok = true; SHOP.at = Date.now();
@@ -121,3 +121,6 @@ export async function ensureStampData(st) {
     return d;
   } catch (e) { return ''; }
 }
+
+// テスト版だけ：ダミーデータ（tools/test_dummy.js）
+var TEST_DUMMY = (() => { try { const q = location.search; if (/[?&]dummy=1/.test(q)) sessionStorage.setItem('meguri_dummy', '1'); if (/[?&]dummy=0/.test(q)) sessionStorage.removeItem('meguri_dummy'); return sessionStorage.getItem('meguri_dummy') === '1'; } catch (e) { return false; } })();
