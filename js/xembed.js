@@ -1,17 +1,22 @@
 // お店の X の投稿（#本めぐり）を、X の公式の埋め込みで見せる（v0.35.0）
 // 11/22 ぶっくまさん「#本めぐり の投稿を自動表示させます」「お店のアカウントだけ」
+// 11/22 ぶっくまさん「そもそもボタン必要ないのでは？」「OKです」→ v0.35.3：ボタンなし
 // 決まりごと
-//  - 押すまで X の部品（widgets.js）を読み込まない。読み込むと、見たことが X に伝わるため（プライバシーポリシー第5条）
-//  - 押したときに「次からはボタンなしで表示する」を選べる（設定でいつでも戻せる）
+//  - ボタンは置かない。「いま行くと、出会えるもの」の投稿が画面に出たときに、X の部品（widgets.js）を読み込む
+//    （店のページを開いてすぐ閉じた人・欄まで見なかった人の分は、X に伝わらない。通信量も少なくて済む）
+//  - 「もっと見る」の中は、開いたときに
+//  - 設定の「お店の X の投稿を表示しない」（xOff）なら読み込まず、「X で見る」のリンクだけ
 //  - dnt（追跡しないで）を付けて頼む
 //  - 投稿の写真や文をこちらに取り込まない（X の画面のまま）
-import { esc } from './util.js?v=0.35.2';
-import { S, save } from './state.js?v=0.35.2';
+//  - 見たことが X に伝わることは、プライバシーポリシー第5条に書く
+import { esc } from './util.js?v=0.35.3';
+import { S } from './state.js?v=0.35.3';
 
 const WIDGETS = (() => { try { const q = location.search; if (/[?&]dummy=1/.test(q)) sessionStorage.setItem('meguri_dummy', '1'); if (/[?&]dummy=0/.test(q)) sessionStorage.removeItem('meguri_dummy'); return sessionStorage.getItem('meguri_dummy') === '1'; } catch (e) { return false; } })() ? './js/dummy_widgets.js' : 'https://platform.twitter.com/widgets.js'; // テスト版だけ：ダミーデータ
-let loading = null;
+let loading = null, io = null;
 const ok = (id) => /^\d{1,20}$/.test(String(id || ''));
 const urlOf = (id, u) => `https://x.com/${encodeURIComponent(u || 'i')}/status/${encodeURIComponent(id)}`;
+const linkHTML = (id, u, pre = '') => `<div class="muted small xlink">${pre}<a href="${esc(urlOf(id, u))}" target="_blank" rel="noopener noreferrer">𝕏 X で見る</a></div>`;
 
 function loadWidgets() {
   if (window.twttr && window.twttr.widgets && window.twttr.widgets.createTweet) return Promise.resolve(window.twttr);
@@ -25,20 +30,16 @@ function loadWidgets() {
   return loading;
 }
 
-/** 押す前の箱（店のページの「いま行くと、出会えるもの」の中） */
+/** 投稿の箱（店のページの「いま行くと、出会えるもの」の中）。画面に出たら中身を読む */
 export function xBoxHTML(f) {
   if (!ok(f.x)) return '';
-  return `<div class="xbox" data-x="${esc(f.x)}" data-xu="${esc(f.xu || '')}">
-    <button class="btn xbtn" type="button"><span class="xlogo" aria-hidden="true">𝕏</span>お店の投稿を見る</button>
-    <label class="xkeep"><input type="checkbox"> 次からはボタンなしで表示する</label>
-    <div class="muted small">表示すると、見たことが X に伝わります（<a href="privacy.html" target="_blank" rel="noopener">くわしく</a>）</div>
-  </div>`;
+  return `<div class="xbox" data-x="${esc(f.x)}" data-xu="${esc(f.xu || '')}"><div class="muted small xwait">X の投稿</div></div>`;
 }
 
 async function show(box) {
   const id = box.dataset.x, u = box.dataset.xu; if (!ok(id) || box.dataset.on) return; box.dataset.on = '1';
   box.classList.add('on'); box.innerHTML = '<div class="muted small xwait">X の投稿を読み込んでいます…</div>';
-  const fail = () => { if (box.isConnected) box.innerHTML = `<div class="muted small">X の投稿を表示できませんでした。<a href="${esc(urlOf(id, u))}" target="_blank" rel="noopener noreferrer">X で開く</a></div>`; };
+  const fail = () => { if (box.isConnected) box.innerHTML = linkHTML(id, u, 'X の投稿を表示できませんでした。'); };
   try {
     const t = await loadWidgets(); if (!box.isConnected) return;
     const holder = document.createElement('div'); box.innerHTML = ''; box.appendChild(holder);
@@ -48,19 +49,12 @@ async function show(box) {
   } catch (e) { fail(); }
 }
 
-/** 店のページを出したあとに呼ぶ。ボタンを動かし、「次からは表示」を選んでいれば、すぐに出す */
+/** 店のページを出したあと（と「もっと見る」を開いたあと）に呼ぶ */
 export function mountX(root) {
-  if (root.id === 'sheet-body') delete root.dataset.xon; // 店のページを開き直したら、また押すまで出さない
-  root.querySelectorAll('.xbox[data-x]').forEach((box) => {
-    if (box.closest('.fair-more[hidden]')) return; // 「もっと見る」の中は、開いたときに（v0.35.1）
-    if (S.settings.xShow || box.closest('[data-xon]')) { show(box); return; }
-    const b = box.querySelector('.xbtn'); if (!b) return;
-    b.addEventListener('click', () => {
-      const keep = box.querySelector('.xkeep input');
-      if (keep && keep.checked) { S.settings.xShow = true; save(); }
-      // 1回押せば、この店のページで見えている X の投稿は、まとめて表示（1件ずつ押さなくてよい）
-      root.querySelectorAll('.xbox[data-x]').forEach((x) => { if (!x.closest('.fair-more[hidden]')) show(x); });
-      root.dataset.xon = '1'; // このあと「もっと見る」で開いた分も、そのまま表示
-    });
-  });
+  const boxes = [...root.querySelectorAll('.xbox[data-x]')].filter((b) => !b.dataset.on && !b.closest('.fair-more[hidden]'));
+  if (!boxes.length) return;
+  if (S.settings.xOff) { boxes.forEach((b) => { b.dataset.on = '1'; b.classList.add('on'); b.innerHTML = linkHTML(b.dataset.x, b.dataset.xu); }); return; } // 表示しない設定：リンクだけ
+  if (!('IntersectionObserver' in window)) { boxes.forEach(show); return; }
+  if (!io) io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { io.unobserve(e.target); show(e.target); } }), { rootMargin: '150px 0px' });
+  boxes.forEach((b) => io.observe(b));
 }
