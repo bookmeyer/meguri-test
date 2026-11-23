@@ -9,8 +9,8 @@
 //  - dnt（追跡しないで）を付けて頼む
 //  - 投稿の写真や文をこちらに取り込まない（X の画面のまま）
 //  - 見たことが X に伝わることは、プライバシーポリシー第5条に書く
-import { esc } from './util.js?v=0.36.0';
-import { S } from './state.js?v=0.36.0';
+import { esc } from './util.js?v=0.36.1';
+import { S } from './state.js?v=0.36.1';
 
 const WIDGETS = (() => { try { const q = location.search; if (/[?&]dummy=1/.test(q)) sessionStorage.setItem('meguri_dummy', '1'); if (/[?&]dummy=0/.test(q)) sessionStorage.removeItem('meguri_dummy'); return sessionStorage.getItem('meguri_dummy') === '1'; } catch (e) { return false; } })() ? './js/dummy_widgets.js' : 'https://platform.twitter.com/widgets.js'; // テスト版だけ：ダミーデータ
 let loading = null, io = null;
