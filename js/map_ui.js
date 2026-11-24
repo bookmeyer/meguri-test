@@ -1,23 +1,23 @@
 // 地図の画面：現在地まわり（射程・いちばん近い店）・ピンの状態・現在地とお試し歩き・店のページ・さがす・店を足す・行きたい店のお知らせ
-import { RANGE_M, TERRITORY_M, PG, TRIAL_ON, PREFS, MAP_CREDIT } from './config.js?v=0.37.1';
-import { $, arrowOf, bearing, icon, fmtDist, esc, dist, $$, emit, fmtDate, gmapDir, stars, gmapPlace, prefOf } from './util.js?v=0.37.1';
-import { S, save } from './state.js?v=0.37.1';
-import { unlock, sfx } from './audio.js?v=0.37.1';
-import { hasPos, POS, startWatch, setTrial, setPos, jumped, setFollow } from './position.js?v=0.37.1';
-import { STORES, BYID, isLib, isFeat, rarityOf, pickOpen, placeWord, bookTitle, stampSVG, rarityText, lookupIsbn, hideStore, renameStore, search, FEAT } from './data.js?v=0.37.1';
-import * as MAP from './map.js?v=0.37.1';
-import * as G from './game.js?v=0.37.1';
-import * as E from './events.js?v=0.37.1';
-import * as J from './journey.js?v=0.37.1';
-import { dirLink, openModal, closeModal, stopLinks, toast, closeSheet, refreshHud, currentView, switchView, syncStatusCard } from './ui.js?v=0.37.1';
-import { startCheckin, shareStampUI } from './checkin_ui.js?v=0.37.1';
-import { startCard } from './card_ui.js?v=0.37.1';
-import * as SH from './shops.js?v=0.37.1';
-import { addReading } from './reading.js?v=0.37.1';
-import { todayISO } from './util.js?v=0.37.1';
-import { xBoxHTML, mountX } from './xembed.js?v=0.37.1';
-import { showBand, hideBand } from './start_ui.js?v=0.37.1';
-import { openInbox } from './inbox_ui.js?v=0.37.1';
+import { RANGE_M, TERRITORY_M, PG, TRIAL_ON, PREFS, MAP_CREDIT } from './config.js?v=0.37.2';
+import { $, arrowOf, bearing, icon, fmtDist, esc, dist, $$, emit, fmtDate, gmapDir, stars, gmapPlace, prefOf } from './util.js?v=0.37.2';
+import { S, save } from './state.js?v=0.37.2';
+import { unlock, sfx } from './audio.js?v=0.37.2';
+import { hasPos, POS, startWatch, setTrial, setPos, jumped, setFollow } from './position.js?v=0.37.2';
+import { STORES, BYID, isLib, isFeat, rarityOf, pickOpen, placeWord, bookTitle, stampSVG, rarityText, lookupIsbn, hideStore, renameStore, search, FEAT } from './data.js?v=0.37.2';
+import * as MAP from './map.js?v=0.37.2';
+import * as G from './game.js?v=0.37.2';
+import * as E from './events.js?v=0.37.2';
+import * as J from './journey.js?v=0.37.2';
+import { dirLink, openModal, closeModal, stopLinks, toast, closeSheet, refreshHud, currentView, switchView, syncStatusCard } from './ui.js?v=0.37.2';
+import { startCheckin, shareStampUI } from './checkin_ui.js?v=0.37.2';
+import { startCard } from './card_ui.js?v=0.37.2';
+import * as SH from './shops.js?v=0.37.2';
+import { addReading } from './reading.js?v=0.37.2';
+import { todayISO } from './util.js?v=0.37.2';
+import { xBoxHTML, mountX } from './xembed.js?v=0.37.2';
+import { showBand, hideBand } from './start_ui.js?v=0.37.2';
+import { openInbox } from './inbox_ui.js?v=0.37.2';
 
 // ---------- 行きたい店のお知らせ（地図の下に出る帯） ----------
 let waTimer = null;
@@ -190,7 +190,7 @@ function dirWarn(st, d) {
 // 店の前で「お店が見つからない」（v0.26.0・射程内だけ）：怒る場所ではなく、直す場所に
 // 直しの選び方（v0.37.1。11/24 ぶっくまさん「ここが長すぎて使い勝手が悪くなります」→ 4つのボタンと「お店の方へ」を1行に）：「情報がちがう？」を押したときだけ、4つのボタンを出す
 function fixMenu(st, near) {
-  const x = $('#sheet-extra'); x.innerHTML = `${reportInvite(st)}<div class="actions fix-acts"><button class="btn" data-f="report">${isLib(st) ? '閉館している' : '閉店している'}</button><button class="btn" data-f="rename">名前が違う</button><button class="btn" data-f="moved">場所が違う</button>${near ? '<button class="btn" data-f="notfound">お店が見つからない</button>' : ''}</div>`;
+  const x = $('#sheet-extra'); x.innerHTML = `<div class="actions fix-acts"><button class="btn" data-f="report">${isLib(st) ? '閉館している' : '閉店している'}</button><button class="btn" data-f="rename">名前が違う</button><button class="btn" data-f="moved">場所が違う</button>${near ? '<button class="btn" data-f="notfound">お店が見つからない</button>' : ''}</div>`;
   $$('#sheet-extra [data-f]').forEach((b) => b.addEventListener('click', () => { sfx.click(); const f = b.dataset.f; if (f === 'moved') movedBox(st); else if (f === 'notfound') notFoundBox(st); else reportBox(st, f); }));
   x.scrollIntoView({ block: 'nearest' });
 }
