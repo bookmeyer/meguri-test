@@ -1,7 +1,7 @@
 // アプリの外の窓口のページ（join.html・contact.html。v0.37.0）：Xの募集やメディアの方など、アプリを入れていない人向け
 // ?shop=店番号 でお店を選んでおく。contact.html?k=media で「取材・メディア」を選んでおく
-import { EVENTS_API, APP_VER } from './config.js?v=0.37.3';
-import { mountInbox } from './inbox.js?v=0.37.3';
+import { EVENTS_API, APP_VER } from './config.js?v=0.37.4';
+import { mountInbox } from './inbox.js?v=0.37.4';
 
 let ALL = null;
 const load = async () => {
