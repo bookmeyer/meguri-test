@@ -1,10 +1,10 @@
 // 窓口をアプリの中で開く（v0.37.0）：設定の「書店・図書館の方へ」「お問い合わせ・ご要望」と、店のページの「この店の方へ」から
-import { APP_VER } from './config.js?v=0.37.2';
-import { $ } from './util.js?v=0.37.2';
-import { openModal, closeModal, toast } from './ui.js?v=0.37.2';
-import { apiBase, deviceId } from './events.js?v=0.37.2';
-import { search } from './data.js?v=0.37.2';
-import { mountInbox } from './inbox.js?v=0.37.2';
+import { APP_VER } from './config.js?v=0.37.3';
+import { $ } from './util.js?v=0.37.3';
+import { openModal, closeModal, toast } from './ui.js?v=0.37.3';
+import { apiBase, deviceId } from './events.js?v=0.37.3';
+import { search } from './data.js?v=0.37.3';
+import { mountInbox } from './inbox.js?v=0.37.3';
 
 const find = async (w) => search(w, 12).filter((s) => !s.demo && !s.custom).map((s) => ({ i: s.i, n: s.n, a: s.a || (s.aa ? s.aa + ' 付近' : '') }));
 
