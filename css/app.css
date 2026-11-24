@@ -692,3 +692,10 @@ details.chap-pro summary b{font-family:var(--display);font-weight:400}
 .xbox .xwait{padding:10px;text-align:center}.xbox .xlink{padding:4px 0}
 /* 2週間をこえた X の投稿は薄く（v0.35.5） */
 .shop-sec .fair.old,.fair-item.old{opacity:.6}
+/* 店のページの下を1行に（v0.37.1） */
+.fix-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px}
+.fix-open{display:flex;align-items:center;gap:8px;flex:1;min-height:48px;padding:6px 12px;border:2px dashed var(--edge);border-radius:var(--r-m);background:transparent;color:var(--ink);text-align:left}
+.fix-open .ic{flex:none;width:18px;height:18px;color:var(--shu)}
+.fix-open span{display:flex;flex-direction:column;line-height:1.3}.fix-open b{font-size:15px}.fix-open small{font-size:12px;color:var(--ink-2)}
+.fix-row .linkish{flex:none;white-space:nowrap}
+.fix-acts .btn{flex:1 1 calc(50% - 5px);min-height:44px}
