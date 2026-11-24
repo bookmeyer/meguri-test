@@ -1,21 +1,21 @@
 // めぐり帳（view-zukan）：スタンプ・本・物語・月のふり返り・県
-import { pagesForVol, frameOf, PREFS } from './config.js?v=0.36.6';
-import { esc, icon, $, todayISO, $$, fmtDate, prefOf, fmtMin } from './util.js?v=0.36.6';
-import { S, save } from './state.js?v=0.36.6';
-import { BYID, rarityOf, STORES, stampSVG } from './data.js?v=0.36.6';
-import * as G from './game.js?v=0.36.6';
-import * as E from './events.js?v=0.36.6';
-import { storyImage, shareBlob, profileImage } from './share.js?v=0.36.6';
-import * as J from './journey.js?v=0.36.6';
-import * as R from './reading.js?v=0.36.6';
-import { toast, openModal, closeModal, currentSub, emptyBox } from './ui.js?v=0.36.6';
-import { openSheet, startAdd } from './map_ui.js?v=0.36.6';
-import { openCard } from './card_ui.js?v=0.36.6';
-import { renderReading } from './reading_ui.js?v=0.36.6';
-import { nameModal } from './settings_ui.js?v=0.36.6';
-import { profileComplete } from './profile_ui.js?v=0.36.6';
-import { prologueHTML } from './quiz_ui.js?v=0.36.6'; // 物語のプロローグ（v0.33.0）
-import { openTitles } from './titles_ui.js?v=0.36.6'; // 称号の一覧（v0.33.2）
+import { pagesForVol, frameOf, PREFS } from './config.js?v=0.36.7';
+import { esc, icon, $, todayISO, $$, fmtDate, prefOf, fmtMin } from './util.js?v=0.36.7';
+import { S, save } from './state.js?v=0.36.7';
+import { BYID, rarityOf, STORES, stampSVG } from './data.js?v=0.36.7';
+import * as G from './game.js?v=0.36.7';
+import * as E from './events.js?v=0.36.7';
+import { storyImage, shareBlob, profileImage } from './share.js?v=0.36.7';
+import * as J from './journey.js?v=0.36.7';
+import * as R from './reading.js?v=0.36.7';
+import { toast, openModal, closeModal, currentSub, emptyBox } from './ui.js?v=0.36.7';
+import { openSheet, startAdd } from './map_ui.js?v=0.36.7';
+import { openCard } from './card_ui.js?v=0.36.7';
+import { renderReading } from './reading_ui.js?v=0.36.7';
+import { nameModal } from './settings_ui.js?v=0.36.7';
+import { profileComplete } from './profile_ui.js?v=0.36.7';
+import { prologueHTML } from './quiz_ui.js?v=0.36.7'; // 物語のプロローグ（v0.33.0）
+import { openTitles } from './titles_ui.js?v=0.36.7'; // 称号の一覧（v0.33.2）
 
 // ---------- 今日の物語 ----------
 function chapterHTML(ch) {
