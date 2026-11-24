@@ -1,22 +1,23 @@
 // 地図の画面：現在地まわり（射程・いちばん近い店）・ピンの状態・現在地とお試し歩き・店のページ・さがす・店を足す・行きたい店のお知らせ
-import { RANGE_M, TERRITORY_M, PG, TRIAL_ON, PREFS, MAP_CREDIT } from './config.js?v=0.36.7';
-import { $, arrowOf, bearing, icon, fmtDist, esc, dist, $$, emit, fmtDate, gmapDir, stars, gmapPlace, prefOf } from './util.js?v=0.36.7';
-import { S, save } from './state.js?v=0.36.7';
-import { unlock, sfx } from './audio.js?v=0.36.7';
-import { hasPos, POS, startWatch, setTrial, setPos, jumped, setFollow } from './position.js?v=0.36.7';
-import { STORES, BYID, isLib, isFeat, rarityOf, pickOpen, placeWord, bookTitle, stampSVG, rarityText, lookupIsbn, hideStore, renameStore, search, FEAT } from './data.js?v=0.36.7';
-import * as MAP from './map.js?v=0.36.7';
-import * as G from './game.js?v=0.36.7';
-import * as E from './events.js?v=0.36.7';
-import * as J from './journey.js?v=0.36.7';
-import { dirLink, openModal, closeModal, stopLinks, toast, closeSheet, refreshHud, currentView, switchView, syncStatusCard } from './ui.js?v=0.36.7';
-import { startCheckin, shareStampUI } from './checkin_ui.js?v=0.36.7';
-import { startCard } from './card_ui.js?v=0.36.7';
-import * as SH from './shops.js?v=0.36.7';
-import { addReading } from './reading.js?v=0.36.7';
-import { todayISO } from './util.js?v=0.36.7';
-import { xBoxHTML, mountX } from './xembed.js?v=0.36.7';
-import { showBand, hideBand } from './start_ui.js?v=0.36.7';
+import { RANGE_M, TERRITORY_M, PG, TRIAL_ON, PREFS, MAP_CREDIT } from './config.js?v=0.37.0';
+import { $, arrowOf, bearing, icon, fmtDist, esc, dist, $$, emit, fmtDate, gmapDir, stars, gmapPlace, prefOf } from './util.js?v=0.37.0';
+import { S, save } from './state.js?v=0.37.0';
+import { unlock, sfx } from './audio.js?v=0.37.0';
+import { hasPos, POS, startWatch, setTrial, setPos, jumped, setFollow } from './position.js?v=0.37.0';
+import { STORES, BYID, isLib, isFeat, rarityOf, pickOpen, placeWord, bookTitle, stampSVG, rarityText, lookupIsbn, hideStore, renameStore, search, FEAT } from './data.js?v=0.37.0';
+import * as MAP from './map.js?v=0.37.0';
+import * as G from './game.js?v=0.37.0';
+import * as E from './events.js?v=0.37.0';
+import * as J from './journey.js?v=0.37.0';
+import { dirLink, openModal, closeModal, stopLinks, toast, closeSheet, refreshHud, currentView, switchView, syncStatusCard } from './ui.js?v=0.37.0';
+import { startCheckin, shareStampUI } from './checkin_ui.js?v=0.37.0';
+import { startCard } from './card_ui.js?v=0.37.0';
+import * as SH from './shops.js?v=0.37.0';
+import { addReading } from './reading.js?v=0.37.0';
+import { todayISO } from './util.js?v=0.37.0';
+import { xBoxHTML, mountX } from './xembed.js?v=0.37.0';
+import { showBand, hideBand } from './start_ui.js?v=0.37.0';
+import { openInbox } from './inbox_ui.js?v=0.37.0';
 
 // ---------- 行きたい店のお知らせ（地図の下に出る帯） ----------
 let waTimer = null;
@@ -293,6 +294,7 @@ export function openSheet(id, quiet) {
     </div>${st.demo ? '' : `<div class="reg"><div class="reg-h"><span class="badge ${reg.rank >= 3 ? 'shu' : reg.rank >= 2 ? 'gold' : ''}">常連度 ${reg.rank ? esc(reg.name) : 'まだ'}</span><span class="muted small">来店 ${reg.days}日${reg.next ? `・あと${reg.toNext}日で「${esc(reg.next.name)}」` : '・最高位'}</span></div><div class="rally" role="img" aria-label="常連度 ${G.REGULAR_NAMES.length}段階のうち${reg.rank}">${G.REGULAR_NAMES.map((nm, k) => `<i class="${k < reg.rank ? (k === G.REGULAR_NAMES.length - 1 ? 'top' : 'on') : ''}" title="${esc(nm)}">${k < reg.rank ? icon('check') : ''}</i>`).join('')}</div><div class="rally-l"><span>${esc(G.REGULAR_NAMES[0])}</span><span>${esc(G.REGULAR_NAMES[G.REGULAR_NAMES.length - 1])}</span></div></div>`}${hist}
     <div class="muted small" style="margin-top:10px">${st.a ? `${esc(st.a)}　${esc(prefOf(st))}` : st.aa ? `${esc(st.aa)} 付近<span class="addr-note">（位置からの目安）</span>` : `${st.custom ? '' : '住所の情報なし（地図データより）'}　${esc(prefOf(st))}`}</div>${st.demo || st.custom ? '' : `<div class="muted small">${esc(srcLine)}</div>`}
     ${st.demo || st.custom || st.closed ? '' : `${reportInvite(st)}<div class="actions"><button class="btn ghost" data-act="report">${isLib(st) ? '閉館している' : '閉店している'}</button><button class="btn ghost" data-act="rename">名前が違う</button><button class="btn ghost" data-act="moved">場所が違う</button>${near ? '<button class="btn ghost" data-act="notfound">お店が見つからない</button>' : ''}</div>`}
+    ${st.demo || st.custom || st.closed || st.part ? '' : `<div class="ib-join-link"><button class="linkish" data-act="join">${isLib(st) ? 'この図書館の方へ' : 'この店の方へ'}：本めぐりに参加する（無料）</button></div>`}
     <div id="sheet-extra"></div>`;
   mountX($('#sheet-body')); // お店の X の投稿（v0.35.0）
   const fm = $('#sheet-body .fair-more-btn'); if (fm) fm.onclick = () => { const box = $('#sheet-body .fair-more'); if (!box) return; box.hidden = false; fm.remove(); mountX(box); };
@@ -307,6 +309,7 @@ export function openSheet(id, quiet) {
     else if (a === 'dir') dirWarn(st, d);
     else if (a === 'notfound') notFoundBox(st);
     else if (a === 'moved') movedBox(st);
+    else if (a === 'join') openInbox('join', { store: { i: st.i, n: st.n, lib: isLib(st) } }); // 参加の申し込み（v0.37.0・まだ参加店でない店だけ）
     else { const r2 = G.toggleWant(id); applyMapStates(); refreshHud(); openSheet(id, true); r2.rewards.forEach((x) => toast(x, 'ok')); } }));
   const sheet = $('#sheet'); sheet.dataset.id = id; sheet.hidden = false;
   if (!quiet) { if (currentView !== 'map') switchView('map'); MAP.flyTo(st.lo, st.la, 14); G.noteLook(id).forEach((x) => toast(x, 'ok')); refreshHud(); }

@@ -141,7 +141,7 @@ h3 .muted{font-weight:500;letter-spacing:0}
 .banner.action{background:var(--midori);color:var(--on-color)} .banner .btn,.banner button{min-height:34px;padding:4px 12px;margin-left:auto;background:var(--card);color:var(--ink);border:2px solid var(--edge);border-radius:10px;font-weight:700}
 
 /* ---- 入力 ---- */
-textarea,input[type=text],input[type=search]{width:100%;border:2px solid var(--edge);border-radius:var(--r-m);padding:10px 12px;background:var(--card);min-height:46px}
+textarea,input[type=text],input[type=search],input[type=email]{width:100%;border:2px solid var(--edge);border-radius:var(--r-m);padding:10px 12px;background:var(--card);min-height:46px}
 textarea{min-height:76px;resize:vertical}
 .field{margin:10px 0} .field label{display:block;font-size:13px;color:var(--ink-2);margin-bottom:4px;font-weight:700}
 .chk{display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0}
@@ -604,6 +604,14 @@ ul.plain,ol.plain{padding-left:1.2em;margin:8px 0;line-height:1.7;font-size:14px
 /* v0.29.0 報告の特典のひとこと・めぐり帳の「あなたが直した店」 */
 #pick-cross{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;pointer-events:none;z-index:5;background:linear-gradient(var(--ink,#1B1B1B),var(--ink,#1B1B1B)) center/3px 100% no-repeat,linear-gradient(var(--ink,#1B1B1B),var(--ink,#1B1B1B)) center/100% 3px no-repeat;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff)}
 .mv-pick{margin:2px 0 8px 26px}
+/* 窓口（v0.37.0）：参加の申し込み・お問い合わせ */
+.ib-form .field label{margin-bottom:6px}.ib-form .chk{align-items:flex-start}.ib-form .chk input{margin-top:4px;flex:none}
+.ib-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.ib-list{display:flex;flex-direction:column;gap:6px;margin-top:6px}.ib-hit{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:8px 12px;border:2px solid var(--edge);border-radius:var(--r-m);background:var(--card);color:var(--ink)}
+.ib-chosen{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.ib-chosen .btn{min-height:36px;padding:4px 10px}
+.ib-err.on{color:var(--shu);font-weight:700;margin-top:8px}
+.ib-done{padding:14px;border:2px solid var(--edge);border-radius:var(--r-m);background:var(--card)}.ib-done b{font-size:18px}
+.ib-join-link{margin-top:10px;text-align:center}.linkish{background:none;border:0;padding:6px;color:var(--ink-2);text-decoration:underline;font-size:13px;font-weight:700}
 .rp-reward{display:flex;gap:6px;align-items:flex-start;margin:10px 0 2px;font-size:13px;font-weight:700;color:var(--ink-2);line-height:1.5}
 .rp-reward .ic{flex:none;width:16px;height:16px;margin-top:2px;color:var(--shu)}
 .rp-reward b{color:var(--shu)}
