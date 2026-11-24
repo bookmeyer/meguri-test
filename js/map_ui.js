@@ -206,9 +206,6 @@ const THANKS = `運営にも知らせました。直ったら +${MAP_CREDIT.fix}
 // ①② 報告の特典のひとこと（v0.29.0。11/20 ぶっくまさん「見つけて報告した場合に特典がつくことはもっとアピールしたい」）
 const REWARD = (add) => `<div class="rp-reward">${icon('flag')}<span>${add ? `地図に載ったら <b>+${MAP_CREDIT.add}ページ</b>と称号「開拓者」` : `直ったら <b>+${MAP_CREDIT.fix}ページ</b>と称号「地図守り」`}</span></div>`;
 // ④ 店のページ：まだ確かめられていない店（地図データだけ）には「行ったら見てください」
-const reportInvite = (st) => (SH.trustOf(st) || {}).k === 'map'
-  ? `<div class="rp-reward invite">${icon('flag')}<span>この店は、まだ本めぐりで確かめられていません。行ったら、名前や営業が合っているか見てください。ちがっていたら教えていただき、直ったら <b>+${MAP_CREDIT.fix}ページ</b>と称号</span></div>`
-  : `<div class="rp-reward">${icon('flag')}<span>情報がちがっていたら教えてください。直ったら <b>+${MAP_CREDIT.fix}ページ</b>と称号</span></div>`;
 function reportBox(st, a, o = {}) {
   const x = $('#sheet-extra'); const pw = placeWord(st); const tag = (nt) => (o.near ? `【店の前から${o.why ? '・' + o.why : ''}】` : '') + nt; // v0.26.0
   x.innerHTML = a === 'report'
