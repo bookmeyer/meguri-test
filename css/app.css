@@ -602,6 +602,8 @@ ul.plain,ol.plain{padding-left:1.2em;margin:8px 0;line-height:1.7;font-size:14px
 .banner.band.stack .band-x{order:2}
 .banner.band.stack button[data-k]{order:3;margin-left:auto}
 /* v0.29.0 報告の特典のひとこと・めぐり帳の「あなたが直した店」 */
+#pick-cross{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;pointer-events:none;z-index:5;background:linear-gradient(var(--ink,#1B1B1B),var(--ink,#1B1B1B)) center/3px 100% no-repeat,linear-gradient(var(--ink,#1B1B1B),var(--ink,#1B1B1B)) center/100% 3px no-repeat;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff)}
+.mv-pick{margin:2px 0 8px 26px}
 .rp-reward{display:flex;gap:6px;align-items:flex-start;margin:10px 0 2px;font-size:13px;font-weight:700;color:var(--ink-2);line-height:1.5}
 .rp-reward .ic{flex:none;width:16px;height:16px;margin-top:2px;color:var(--shu)}
 .rp-reward b{color:var(--shu)}
