@@ -65,7 +65,7 @@ export function joinHTML(o = {}) {
   ${hp}
   <div class="ib-err muted small" role="alert"></div>
   <div class="actions"><button type="submit" class="btn primary ib-send">申し込む</button>${o.cancel ? '<button type="button" class="btn ghost ib-cancel">やめる</button>' : ''}</div>
-  <p class="muted small">いただいたお名前・メールアドレスなどの使い方は、<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>に書いています。</p>
+  <p class="muted small">いただいたお名前とメールアドレスは、参加の手続きと、本めぐりや本をつなぐ株式会社の企画で続けてご一緒するときのご連絡に使います（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）。</p>
 </form>`;
 }
 
@@ -89,7 +89,7 @@ export function contactHTML(o = {}) {
   ${hp}
   <div class="ib-err muted small" role="alert"></div>
   <div class="actions"><button type="submit" class="btn primary ib-send">送る</button>${o.cancel ? '<button type="button" class="btn ghost ib-cancel">やめる</button>' : ''}</div>
-  <p class="muted small">いただいたお名前・メールアドレスなどの使い方は、<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>に書いています。</p>
+  <p class="muted small">いただいたお名前とメールアドレスは、お返事にだけ使います（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）。</p>
 </form>`;
 }
 
