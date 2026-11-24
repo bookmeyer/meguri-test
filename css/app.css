@@ -699,3 +699,5 @@ details.chap-pro summary b{font-family:var(--display);font-weight:400}
 .fix-open span{display:flex;flex-direction:column;line-height:1.3}.fix-open b{font-size:15px}.fix-open small{font-size:12px;color:var(--ink-2)}
 .fix-row .linkish{flex:none;white-space:nowrap}
 .fix-acts .btn{flex:1 1 calc(50% - 5px);min-height:44px}
+/* 申し込みの売り（v0.37.5）：X の #本めぐり の自動表示 */
+.ib-sell{margin:0 0 10px;padding:12px 14px;background:var(--card-2,#FFF3C4);border:2px solid var(--edge);border-radius:var(--r-m)}.ib-sell b{display:block;font-size:16px}.ib-sell span{font-size:14px;color:var(--ink-2)}

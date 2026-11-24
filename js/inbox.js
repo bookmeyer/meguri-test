@@ -12,11 +12,12 @@ export const CONTACT_KINDS = [
 ];
 const NEED_MAIL = ['media', 'shop', 'delete'];
 const ROLES = [['staff', '店長・店員'], ['hq', '本部・チェーンの担当'], ['lib', '図書館の方'], ['other', 'そのほか']];
-const WANTS = [['pick', '書店員さんの1冊'], ['fair', 'いまのフェア'], ['shelf', '売場の写真'], ['x', 'Xの #本めぐり']];
+const WANTS = [['x', 'Xの #本めぐり を自動で表示'], ['pick', '書店員さんの1冊'], ['fair', 'いまのフェア'], ['shelf', '売場の写真']]; // X を先頭に（v0.37.5。11/24 ぶっくまさん「Xの投稿を自動表示をうりにしたい」）
 const ERR = {
   limit: 'きょうは、これ以上送れません。あしたまた送ってください',
   email: 'メールアドレスの形を確かめてください',
   join: 'お店・お立場・お約束のチェックを確かめてください',
+  x: 'Xのアカウントは「@」のあとの英数字（例：@meguri_books）か、x.com のアドレスで入れてください',
   addr: '地図にないお店は、住所も入れてください',
   media: '会社名と媒体名を入れてください',
   body: '内容を書いてください',
@@ -50,18 +51,21 @@ const storePicker = (o, label, required) => `<div class="field ib-store"><label>
 export function joinHTML(o = {}) {
   const pw = o.store && o.store.lib ? '図書館' : 'お店';
   return `<form class="ib-form" novalidate>
-  <p class="muted small">本めぐりに、${pw}の「書店員さんの1冊」「いまのフェア」「売場の写真」をのせられます。<b>費用はかかりません。</b>お申し込みのあと、運営から受付ページのURLをメールでお送りします。</p>
+  <div class="ib-sell"><b>Xに「#本めぐり」をつけて投稿するだけ。</b><span>${pw}のXの投稿が、本めぐりの${pw}のページに自動で並びます。新しい作業はいりません。ふだんの投稿にタグをひとつ足すだけです。</span></div>
+  <p class="muted small">ほかに「書店員さんの1冊」「いまのフェア」「売場の写真」ものせられます。<b>費用はかかりません。</b>お申し込みのあと、運営から受付ページのURLをメールでお送りします。</p>
   ${storePicker(o, 'お店・図書館', true)}
   <div class="field"><label>お立場</label>${ROLES.map(([k, t], i) => `<label class="chk"><input type="radio" name="role" value="${k}"${(o.store && o.store.lib ? k === 'lib' : i === 0) ? ' checked' : ''}> ${t}</label>`).join('')}</div>
   <div class="field"><label>ご連絡先のメール</label><input type="email" name="email" maxlength="120" autocomplete="email" inputmode="email" placeholder="受付ページのURLをお送りします"></div>
   <div class="field"><label>お名前（任意・ニックネームでも）</label><input type="text" name="name" maxlength="40" autocomplete="name"></div>
+  <div class="field ib-x"><label>${pw}のXのアカウント（任意）</label><input type="text" name="x" maxlength="100" placeholder="@meguri_books または https://x.com/…" autocomplete="off" spellcheck="false" autocapitalize="off">
+    <label class="chk"><input type="checkbox" name="xon"> <span>「#本めぐり」をつけた${pw}の投稿を、本めぐりの${pw}のページに載せてよい<br><span class="muted small">載るのは、このアカウントの投稿だけです。Xの画面のまま（埋め込み）で、投稿から4週間出ます。あとから止められます</span></span></label></div>
   <div class="field"><label>やってみたいこと（任意・いくつでも）</label>${WANTS.map(([k, t]) => `<label class="chk"><input type="checkbox" name="wants" value="${k}"> ${t}</label>`).join('')}</div>
   <div class="field"><label>ひとこと（任意・200字まで）</label><textarea name="body" maxlength="200" rows="3"></textarea></div>
   <label class="chk"><input type="checkbox" name="agree"> <span><a href="terms.html" target="_blank" rel="noopener">利用規約</a>の「お店の方への約束」を読みました</span></label>
   ${hp}
   <div class="ib-err muted small" role="alert"></div>
   <div class="actions"><button type="submit" class="btn primary ib-send">申し込む</button>${o.cancel ? '<button type="button" class="btn ghost ib-cancel">やめる</button>' : ''}</div>
-  <p class="muted small">いただいたメールとお名前は、お返事と参加の手続きにだけ使います（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）。</p>
+  <p class="muted small">いただいたお名前・メールアドレスなどの使い方は、<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>に書いています。</p>
 </form>`;
 }
 
@@ -85,7 +89,7 @@ export function contactHTML(o = {}) {
   ${hp}
   <div class="ib-err muted small" role="alert"></div>
   <div class="actions"><button type="submit" class="btn primary ib-send">送る</button>${o.cancel ? '<button type="button" class="btn ghost ib-cancel">やめる</button>' : ''}</div>
-  <p class="muted small">いただいたメールとお名前は、お返事にだけ使います（<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>）。</p>
+  <p class="muted small">いただいたお名前・メールアドレスなどの使い方は、<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>に書いています。</p>
 </form>`;
 }
 
@@ -124,7 +128,9 @@ export function mountInbox(root, mode, o = {}) {
     if (mode === 'join') {
       const s = storeOf(); if (!s || !s.store_name) return fail('join'); if (!s.store && !s.store_addr) return fail('addr');
       if (!email) return fail('email'); if (!f.elements.agree.checked) return fail('join');
+      const xr = v('x'); if (xr && !/^(@?[A-Za-z0-9_]{1,15}|https?:\/\/(www\.|mobile\.)?(x|twitter)\.com\/@?[A-Za-z0-9_]{1,15}([/?].*)?)$/.test(xr)) return fail('x');
       Object.assign(body, s, { kind: 'join', role: (q('input[name=role]:checked', f) || {}).value || 'staff', wants: qa('input[name=wants]:checked', f).map((x) => x.value), body: v('body'), agree: true });
+      if (xr) Object.assign(body, { x: xr, xon: f.elements.xon.checked });
     } else {
       const k = kindSel.value; Object.assign(body, { kind: k, body: v('body') });
       if (!body.body) return fail('body'); if (NEED_MAIL.includes(k) && !email) return fail('email');

@@ -1,20 +1,20 @@
 // 設定の画面と、そこから開くもの：見た目・着せ替え・アイコン・ハンドルネーム・参加コード・送るもののお知らせ・記録を守る・Googleマップの★
-import { SKINS, MAP_SKINS, APP_VER, TRIAL_ON, PROFILE_ON, POLICY_VER } from './config.js?v=0.37.4';
-import { openProfile, profileSummary } from './profile_ui.js?v=0.37.4';
-import { openAvatarPicker } from './setup_ui.js?v=0.37.4';
-import { openGiveCode, openTakeCode } from './transfer_ui.js?v=0.37.4';
-import { homeTip, inAppName } from './start_ui.js?v=0.37.4';
-import { $, esc, fmtDist, icon, $$, mobileOS, isStandalone, emit, todayISO } from './util.js?v=0.37.4';
-import { S, save, parseImport, replace, reset, exportJSON } from './state.js?v=0.37.4';
-import { sfx } from './audio.js?v=0.37.4';
-import { POS } from './position.js?v=0.37.4';
-import { addCustom, STORES, DATA_DATE, rebuild, unhideAll } from './data.js?v=0.37.4';
-import * as MAP from './map.js?v=0.37.4';
-import * as E from './events.js?v=0.37.4';
-import * as GI from './gimport.js?v=0.37.4';
-import { openModal, closeModal, toast, refreshHud, switchView, confirmBox } from './ui.js?v=0.37.4';
-import { applyMapStates, updateNear, updateAreaChip, setTrialUI } from './map_ui.js?v=0.37.4';
-import { openInbox } from './inbox_ui.js?v=0.37.4';
+import { SKINS, MAP_SKINS, APP_VER, TRIAL_ON, PROFILE_ON, POLICY_VER } from './config.js?v=0.37.5';
+import { openProfile, profileSummary } from './profile_ui.js?v=0.37.5';
+import { openAvatarPicker } from './setup_ui.js?v=0.37.5';
+import { openGiveCode, openTakeCode } from './transfer_ui.js?v=0.37.5';
+import { homeTip, inAppName } from './start_ui.js?v=0.37.5';
+import { $, esc, fmtDist, icon, $$, mobileOS, isStandalone, emit, todayISO } from './util.js?v=0.37.5';
+import { S, save, parseImport, replace, reset, exportJSON } from './state.js?v=0.37.5';
+import { sfx } from './audio.js?v=0.37.5';
+import { POS } from './position.js?v=0.37.5';
+import { addCustom, STORES, DATA_DATE, rebuild, unhideAll } from './data.js?v=0.37.5';
+import * as MAP from './map.js?v=0.37.5';
+import * as E from './events.js?v=0.37.5';
+import * as GI from './gimport.js?v=0.37.5';
+import { openModal, closeModal, toast, refreshHud, switchView, confirmBox } from './ui.js?v=0.37.5';
+import { applyMapStates, updateNear, updateAreaChip, setTrialUI } from './map_ui.js?v=0.37.5';
+import { openInbox } from './inbox_ui.js?v=0.37.5';
 
 // ---------- Googleマップの★を読み込む ----------
 export function googleHelp() {
@@ -82,7 +82,7 @@ export function renderSettings() {
     <div class="setting"><div><div class="l">画面の案内</div><div class="s">地図の画面のボタンを、順に指さして説明します</div></div><button class="btn" id="st-tour">もう一度見る</button></div>
     <div class="setting"><div><div class="l">使い方</div><div class="s">はじめての方へ。スタンプの押し方・本のカード・イベントなど</div></div><a class="btn" href="howto.html" target="_blank" rel="noopener">見る</a></div>
     <div class="setting"><div><div class="l">お問い合わせ・ご要望</div><div class="s">使い方の質問・不具合・こんな機能がほしい・取材など（v0.37.0）</div></div><button class="btn" id="st-contact">送る</button></div>
-    <div class="setting"><div><div class="l">書店・図書館の方へ</div><div class="s">書店員さんの1冊・フェア・売場の写真をのせる（無料）。参加のお申し込みはこちら</div></div><button class="btn" id="st-join">申し込む</button></div>
+    <div class="setting"><div><div class="l">書店・図書館の方へ</div><div class="s">Xに #本めぐり をつけるだけで、お店の投稿が自動で並びます（無料）。参加のお申し込みはこちら</div></div><button class="btn" id="st-join">申し込む</button></div>
     <div class="setting"><div><div class="l">プライバシーポリシー</div><div class="s">運営に届くもの・使い方・消し方</div></div><a class="btn" href="privacy.html" target="_blank" rel="noopener">見る</a></div>
     <div class="setting"><div><div class="l">利用規約</div><div class="s">使うときのきまり・お店の方への約束（v0.26.0）</div></div><a class="btn" href="terms.html" target="_blank" rel="noopener">見る</a></div>
     <div class="setting"><div><div class="l">端末の番号</div><div class="s">名前のないランダムな番号です。送った記録やプロフィールを消してほしいときに、お問い合わせに添えてください：<span class="mono">${esc(E.deviceId())}</span></div></div></div>

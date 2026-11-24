@@ -6,9 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://tsunagubooks.com http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'none'">
 <title>書店・図書館の方へ｜本めぐり</title>
-<meta name="description" content="本めぐりに、お店の「書店員さんの1冊」「いまのフェア」「売場の写真」をのせられます。費用はかかりません。参加のお申し込みはこちら。">
+<meta name="description" content="Xに「#本めぐり」をつけて投稿するだけで、お店の投稿が本めぐりのお店のページに自動で並びます。費用はかかりません。参加のお申し込みはこちら。">
 <meta property="og:title" content="書店・図書館の方へ｜本めぐり">
-<meta property="og:description" content="本めぐりに、お店の1冊・フェア・売場の写真をのせられます（無料）。参加のお申し込みはこちら。">
+<meta property="og:description" content="Xに「#本めぐり」をつけて投稿するだけ。お店の投稿が、本めぐりのお店のページに自動で並びます（無料）。">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="本めぐり">
 <meta property="og:url" content="https://meguri.tsunagubooks.com/join.html">
@@ -31,6 +31,10 @@
   h2 { font-family: "Mochiy Pop P One", sans-serif; font-size: 19px; margin: 26px 0 8px; }
   .lead { margin: 0 0 14px; }
   ul.points { margin: 0; padding-left: 20px; }
+  .sell { margin: 4px 0 16px; padding: 18px 16px; background: var(--gold); border: 3px solid var(--ink); border-radius: 18px; box-shadow: 0 5px 0 var(--ink); text-align: center; }
+  .sell b { display: block; font-family: "Mochiy Pop P One", sans-serif; font-size: 22px; line-height: 1.35; }
+  .sell span { display: block; margin-top: 6px; font-weight: 700; }
+  .ib-sell { margin: 0 0 10px; padding: 12px 14px; background: #FFF3C4; border: 2px solid var(--ink); border-radius: 14px; } .ib-sell b { display: block; } .ib-sell span { font-size: 14px; }
   .box { background: var(--card); border: 2px solid var(--ink); border-radius: 16px; padding: 14px 16px; }
   .note { color: var(--ink2); font-size: 13px; text-align: center; margin-top: 18px; }
   a { color: inherit; }
@@ -58,12 +62,14 @@
 <body>
 <main>
   <h1>書店・図書館の方へ</h1>
-  <p class="lead">「本めぐり」は、全国の本屋と図書館をめぐってスタンプを集める地図アプリです。お店のページに、<b>書店員さんの1冊・いまのフェア・売場の写真</b>をのせられます。</p>
+  <div class="sell"><b>Xに「#本めぐり」をつけて<br>投稿するだけ。</b><span>お店のXの投稿が、本めぐりのお店のページに自動で並びます。</span></div>
+  <p class="lead">「本めぐり」は、全国の本屋と図書館をめぐってスタンプを集める地図アプリです。お店のページを見た人が「いま行くと、何に出会えるか」を知って、足を運ぶきっかけにしています。</p>
   <div class="box">
     <ul class="points">
-      <li><b>費用はかかりません。</b></li>
-      <li>お申し込みのあと、運営から<b>お店の受付ページのURL</b>をメールでお送りします。そこから、写真と文を送っていただくだけです。</li>
-      <li>のせる前に、運営が確かめます。のせたものは、あとから直したり消したりできます。</li>
+      <li><b>新しい作業はいりません。</b>ふだんのフェアや入荷・イベントの投稿に「#本めぐり」をひとつ足すだけです。</li>
+      <li>載るのは、お店のアカウントの投稿だけ。Xの画面のまま（埋め込み）で、投稿から4週間出ます。いつでも止められます。</li>
+      <li>ほかに<b>書店員さんの1冊・いまのフェア・売場の写真</b>ものせられます。</li>
+      <li><b>費用はかかりません。</b>お申し込みのあと、運営から受付ページのURLをメールでお送りします。</li>
       <li>チェーンの本部の方は、1つのURLで全店の分を送れるようにします。</li>
     </ul>
   </div>
@@ -71,6 +77,6 @@
   <div id="ib-root" data-mode="join"><p class="muted">読み込んでいます…</p></div>
   <p class="note"><a href="./">本めぐりをひらく</a>　<a href="contact.html">お問い合わせ</a>　<a href="terms.html">利用規約</a>　<a href="privacy.html">プライバシーポリシー</a></p>
 </main>
-<script type="module" src="js/inbox_page.js?v=0.37.4"></script>
+<script type="module" src="js/inbox_page.js?v=0.37.5"></script>
 </body>
 </html>
