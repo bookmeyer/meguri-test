@@ -1,16 +1,16 @@
 // 最初の案内（はじめて開いたとき）
-import { mobileOS, isStandalone, $, esc, icon } from './util.js?v=0.37.9';
-import { S, save } from './state.js?v=0.37.9';
-import { stampSVG, STORES } from './data.js?v=0.37.9';
-import * as MAP from './map.js?v=0.37.9';
-import { cleanHandle } from './settings_ui.js?v=0.37.9';
-import { TRIAL_ON, POLICY_VER } from './config.js?v=0.37.9';
-import { openTakeCode } from './transfer_ui.js?v=0.37.9';
+import { mobileOS, isStandalone, $, esc, icon } from './util.js?v=0.39.0';
+import { S, save } from './state.js?v=0.39.0';
+import { stampSVG, STORES } from './data.js?v=0.39.0';
+import * as MAP from './map.js?v=0.39.0';
+import { cleanHandle } from './settings_ui.js?v=0.39.0';
+import { TRIAL_ON, POLICY_VER } from './config.js?v=0.39.0';
+import { openTakeCode } from './transfer_ui.js?v=0.39.0';
 
 // ---------- 最初の案内 ----------
 export function showOnboarding(onDone) {
   const pages = [
-    { art: `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="92" fill="#FBEFD6" stroke="#1B1B1B" stroke-width="2.5"/><circle cx="96" cy="124" r="46" fill="none" stroke="#2F9BFF" stroke-width="3" stroke-dasharray="6 5"/><circle cx="96" cy="124" r="10" fill="#FFFFFF" stroke="#1B1B1B" stroke-width="3"/><image href="${MAP.pinDataURL('lib')}" x="34" y="62" width="40" height="51"/><image href="${MAP.pinDataURL('rare')}" x="136" y="108" width="40" height="51"/><image href="${MAP.pinDataURL('near')}" x="100" y="28" width="58" height="65"/></svg>`, h: '本屋や図書館に近づくと、ピンが光る', p: '地図に現在地が出ます。店から120m以内に入ると、ピンに黄色い光の輪が付きます。' },
+    { art: `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="92" fill="#FBEFD6" stroke="#1B1B1B" stroke-width="2.5"/><circle cx="96" cy="124" r="46" fill="none" stroke="#2F9BFF" stroke-width="3" stroke-dasharray="6 5"/><circle cx="96" cy="124" r="10" fill="#FFFFFF" stroke="#1B1B1B" stroke-width="3"/><image href="${MAP.pinDataURL('lib')}" x="34" y="62" width="40" height="51"/><image href="${MAP.pinDataURL('rare')}" x="136" y="108" width="40" height="51"/><image href="${MAP.pinDataURL('near')}" x="100" y="28" width="58" height="65"/></svg>`, h: '本屋や図書館に近づくと、ピンが光る', p: '地図に現在地が出ます。店から180m以内に入ると、ピンに黄色い光の輪が付きます。' },
     { art: `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="92" fill="#FBEFD6" stroke="#1B1B1B" stroke-width="2.5"/><g transform="rotate(-7 100 100)">${stampSVG({ i: 'onboard-sample', n: 'ほんの森書店', k: 0 }, true, 124).replace('<svg ', '<svg x="38" y="38" ')}</g></svg>`, h: 'その店だけのスタンプを押す', p: `スタンプは本屋と図書館で全国 ${STORES.length.toLocaleString()} 種類。周りに同じ種類の場所が少ない「秘境」ほど珍しいスタンプです。同じ店に通うほど「常連度」が上がります。` },
     { art: `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="86" fill="#FBEFD6" stroke="#1B1B1B" stroke-width="2.5"/><rect x="62" y="52" width="76" height="100" rx="8" fill="#FFFFFF" stroke="#1B1B1B" stroke-width="2.5"/><rect x="74" y="66" width="52" height="54" rx="4" fill="#FF6A48" stroke="#1B1B1B" stroke-width="2"/><rect x="74" y="128" width="52" height="5" rx="2" fill="#1B1B1B"/><rect x="74" y="138" width="34" height="5" rx="2" fill="#8A8378"/></svg>`, h: '本と出会ったら、カードに', p: '買った本の裏のバーコードを読むと、表紙と店と日付が1枚のカードになります。読んだかどうかは問いません。' },
     { art: `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="92" fill="#FBEFD6" stroke="#1B1B1B" stroke-width="2.5"/><g transform="translate(100 106)"><path d="M-64 -46q32 -14 64 0v88q-32 -14 -64 0z" fill="#FFFFFF" stroke="#1B1B1B" stroke-width="3" stroke-linejoin="round"/><path d="M0 -46q32 -14 64 0v88q-32 -14 -64 0z" fill="#FFFFFF" stroke="#1B1B1B" stroke-width="3" stroke-linejoin="round"/><text x="-32" y="-8" text-anchor="middle" font-size="19" fill="#FF6A48" font-family="Mochiy Pop P One, Zen Maru Gothic, sans-serif">第1巻</text><path d="M-50 14h36M-50 27h28M14 -16h36M14 -3h36M14 10h28M14 23h32" stroke="#D9CDB4" stroke-width="3" stroke-linecap="round"/><path d="M42 -53v32l-7 -6-7 6v-32" fill="#FFD447" stroke="#1B1B1B" stroke-width="1.5" stroke-linejoin="round"/></g></svg>`, h: 'ページがたまると、次の巻へ', p: 'スタンプを押す、本と出会う、歩く（100mで1ページ）。どれもあなたの物語のページになり、ページがたまると巻が進みます。ほかのゲームでいうレベルです。' },

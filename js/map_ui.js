@@ -1,23 +1,23 @@
 // 地図の画面：現在地まわり（射程・いちばん近い店）・ピンの状態・現在地とお試し歩き・店のページ・さがす・店を足す・行きたい店のお知らせ
-import { RANGE_M, TERRITORY_M, PG, TRIAL_ON, PREFS, MAP_CREDIT } from './config.js?v=0.37.9';
-import { $, arrowOf, bearing, icon, fmtDist, esc, dist, $$, emit, fmtDate, gmapDir, stars, gmapPlace, prefOf } from './util.js?v=0.37.9';
-import { S, save } from './state.js?v=0.37.9';
-import { unlock, sfx } from './audio.js?v=0.37.9';
-import { hasPos, POS, startWatch, setTrial, setPos, jumped, setFollow } from './position.js?v=0.37.9';
-import { STORES, BYID, isLib, isFeat, rarityOf, pickOpen, placeWord, bookTitle, stampSVG, rarityText, lookupIsbn, hideStore, renameStore, search, FEAT } from './data.js?v=0.37.9';
-import * as MAP from './map.js?v=0.37.9';
-import * as G from './game.js?v=0.37.9';
-import * as E from './events.js?v=0.37.9';
-import * as J from './journey.js?v=0.37.9';
-import { dirLink, openModal, closeModal, stopLinks, toast, closeSheet, refreshHud, currentView, switchView, syncStatusCard } from './ui.js?v=0.37.9';
-import { startCheckin, shareStampUI } from './checkin_ui.js?v=0.37.9';
-import { startCard } from './card_ui.js?v=0.37.9';
-import * as SH from './shops.js?v=0.37.9';
-import { addReading } from './reading.js?v=0.37.9';
-import { todayISO } from './util.js?v=0.37.9';
-import { xBoxHTML, mountX } from './xembed.js?v=0.37.9';
-import { showBand, hideBand } from './start_ui.js?v=0.37.9';
-import { openInbox } from './inbox_ui.js?v=0.37.9';
+import { RANGE_M, TERRITORY_M, PG, TRIAL_ON, PREFS, MAP_CREDIT } from './config.js?v=0.39.0';
+import { $, arrowOf, bearing, icon, fmtDist, esc, dist, $$, emit, fmtDate, gmapDir, stars, gmapPlace, prefOf } from './util.js?v=0.39.0';
+import { S, save } from './state.js?v=0.39.0';
+import { unlock, sfx } from './audio.js?v=0.39.0';
+import { hasPos, POS, startWatch, setTrial, setPos, jumped, setFollow } from './position.js?v=0.39.0';
+import { STORES, BYID, isLib, isFeat, rarityOf, pickOpen, placeWord, bookTitle, stampSVG, rarityText, lookupIsbn, hideStore, renameStore, search, FEAT } from './data.js?v=0.39.0';
+import * as MAP from './map.js?v=0.39.0';
+import * as G from './game.js?v=0.39.0';
+import * as E from './events.js?v=0.39.0';
+import * as J from './journey.js?v=0.39.0';
+import { dirLink, openModal, closeModal, stopLinks, toast, closeSheet, refreshHud, currentView, switchView, syncStatusCard } from './ui.js?v=0.39.0';
+import { startCheckin, shareStampUI } from './checkin_ui.js?v=0.39.0';
+import { startCard } from './card_ui.js?v=0.39.0';
+import * as SH from './shops.js?v=0.39.0';
+import { addReading } from './reading.js?v=0.39.0';
+import { todayISO, NATIVE, mobileOS } from './util.js?v=0.39.0';
+import { xBoxHTML, mountX } from './xembed.js?v=0.39.0';
+import { showBand, hideBand } from './start_ui.js?v=0.39.0';
+import { openInbox } from './inbox_ui.js?v=0.39.0';
 
 // ---------- 行きたい店のお知らせ（地図の下に出る帯） ----------
 let waTimer = null;
@@ -50,7 +50,7 @@ export const NEAR = { list: [], inRange: new Set(), glow: new Set() };
 const GLOW_MAX = 3; // 地図で光の輪を付けるのは、射程内のうち近い3店まで（店の多い街で光が重なりすぎないように。v0.13）
 // ---------- 現在地まわりの表示（レーダーの帯・最初のクエスト・縁の光） ----------
 // 近づいたときの画面の縁の光・音・振動は使わない（2026-10-17 ぶっくまさんの指示）。射程に入ったらトーストで知らせるだけ
-export function updateNear() {
+export function updateNear(o = {}) { // o.pos：位置が動いたとき（main.js の pos）。店のページは距離の文だけ書きかえる（11/26）
   // 「いちばん近い本屋」の帯（11/3 に外した）と、下に並べていた8枚の店のチップは、v0.23.0 で札の1行目にまとめた（テストプレイの声「画面の四角が多い」）
   if (!hasPos()) { NEAR.list = []; NEAR.inRange = new Set(); NEAR.glow = new Set(); renderNearRow(); applyMapStates(); emit('near'); return; }
   const cand = []; for (const s of STORES) { if (Math.abs(s.la - POS.lat) > 0.03 || Math.abs(s.lo - POS.lon) > 0.036) continue; cand.push({ s, d: dist(POS.lat, POS.lon, s.la, s.lo) }); }
@@ -61,7 +61,7 @@ export function updateNear() {
   if (entered.length) { const first = BYID.get(entered[0]); toast(`📍 ${first.n}${entered.length > 1 ? ` ほか${entered.length - 1}店` : ''} が射程に入りました`, 'ok'); }
   renderNearRow();
   applyMapStates(); emit('near');
-  refreshSheet();
+  if (o.pos) refreshSheetPos(); else refreshSheet();
 }
 // 札の1行目：いちばん近い店と、あと何m（射程に入ったら黄色）。押すと店のページ。「近く○店 ›」は、ちかくの画面へ
 function renderNearRow() {
@@ -82,6 +82,22 @@ export function watchDock() {
   new ResizeObserver(() => { view.style.setProperty('--dock-h', `${Math.round(dock.offsetHeight)}px`); }).observe(dock);
 }
 // 開いている店のページを描き直す。名前の直し・閉店の確かめを開いているあいだは描き直さない（v0.16.0）
+// 店のページのうち、位置で変わるところ（距離の文・射程内か）。key が変わったときだけ、ボタンごと作り直す
+function sheetPos(st) {
+  const d = hasPos() ? dist(POS.lat, POS.lon, st.la, st.lo) : null, j = jumped();
+  const near = !st.closed && d != null && d <= RANGE_M && !j;
+  const text = st.closed ? '' : d == null ? '現在地なし' : j ? '位置が大きく飛んだので、少し待ってから（1分）' : near ? `射程内（約${fmtDist(d)}）` : `ここから約${fmtDist(d)}（あと${fmtDist(d - RANGE_M)}で射程内）`;
+  const key = `${d == null ? 'x' : near ? 'n' : j ? 'j' : 'f'}${POS.fake ? 1 : 0}${d != null && d > 10000 ? 1 : 0}`;
+  return { d, near, text, key };
+}
+// 位置が動いたとき：ボタンが変わるときだけ作り直す。ほかは距離の文だけ（11/26 ぶっくまさん「Xの投稿がある店舗の情報をひらくと、Xの投稿が開いたり閉じたりする」。作り直すたびに X の投稿・書店員さんの1冊の写真を読み直していた）
+function refreshSheetPos() {
+  const sheet = $('#sheet'); if (sheet.hidden || !sheet.dataset.id || $('#sheet-extra').childElementCount) return;
+  const st = BYID.get(sheet.dataset.id); if (!st) return;
+  const v = sheetPos(st);
+  if (v.key !== sheet.dataset.pk) { openSheet(st.i, true); return; }
+  const el = $('#sheet-dist'); if (el && el.textContent !== v.text) el.textContent = v.text;
+}
 export function refreshSheet() { const sheet = $('#sheet'); if (!sheet.hidden && sheet.dataset.id && !$('#sheet-extra').childElementCount) openSheet(sheet.dataset.id, true); }
 export function applyMapStates() {
   const states = new Map();
@@ -101,10 +117,40 @@ export function applyMapStates() {
 // 店へ飛んで、店のページを開く（検索・店へのリンク ?shop= から。v0.33.1）。現在地を追っていると、すぐ現在地に戻されるので、追うのをやめてから飛ぶ（v0.32.11）
 export function jumpTo(id) { const st = BYID.get(id); if (!st) return false; setFollow(false); const lb = $('#btn-locate'); if (lb) lb.classList.remove('on'); openSheet(st.i); MAP.flyTo(st.lo, st.la, 15); return true; }
 export function goPrefHome() { const c = S.profile && S.profile.a && S.profile.a.pref; const p = c ? PREFS[Number(c) - 1] : null; if (!p || hasPos()) return false; MAP.flyTo(p[2], p[1], 11); return true; }
+// 位置が取れなかったときの文（11/25 アプリ版：iPhone の位置情報サービスが切れていて、許可の確認も出ずに「取れませんでした」になった）
+// err.off＝スマホ全体の位置情報サービスが切れている（アプリ版の部品だけが分かる）
+const geoErrText = (err) => {
+  const ios = mobileOS() === 'ios';
+  if (err && err.off) return ios ? 'iPhone の位置情報サービスが切れています。「設定」→「プライバシーとセキュリティ」→「位置情報サービス」をオンにしてください' : 'スマホの位置情報が切れています。「設定」→「位置情報」をオンにしてください';
+  if (err && err.code === 1) return NATIVE ? (ios ? '位置の許可がありません。「設定」→「本めぐり」→「位置情報」で「このAppの使用中」にできます' : '位置の許可がありません。「設定」→「アプリ」→「本めぐり」→「権限」で許可できます') : '位置の許可がありません。ブラウザの設定で許可できます';
+  return '位置が取れませんでした。少しあとで、もう一度';
+};
+// 位置情報が切れている・許可がないときは、閉じるまで消えない窓で、直し方を順に出す（11/25 ぶっくまさん「位置情報はしばらくしたら消えてしまうので、不親切」）
+// iPhone のアプリ版は「設定を開く」で、iPhone の設定の本めぐりのページへ（位置情報の許可はそこで変える。位置情報サービスそのものは開けない）
+function geoHelp(err) {
+  const ios = mobileOS() === 'ios', NS = window.__meguriNative;
+  const step = (a) => `<ol class="geo-steps">${a.map((x) => `<li>${x}</li>`).join('')}</ol>`;
+  let h, steps, open = false;
+  if (err.off) {
+    h = ios ? 'iPhone の位置情報サービスが切れています' : 'スマホの位置情報が切れています';
+    steps = ios ? ['「設定」のアプリを開く', '「プライバシーとセキュリティ」→「位置情報サービス」', 'いちばん上のスイッチをオンにする', '本めぐりに戻って、右下の現在地のボタンを押す'] : ['画面の上から下にスワイプして、「位置情報」をオンにする（または「設定」→「位置情報」）', '本めぐりに戻って、右下の現在地のボタンを押す'];
+  } else if (NATIVE) {
+    h = '本めぐりに、位置の許可がありません';
+    open = ios && NS && typeof NS.openSettings === 'function';
+    steps = ios ? [open ? '下の「設定を開く」を押す（「設定」→「本めぐり」が開きます）' : '「設定」→「本めぐり」を開く', '「位置情報」→「このAppの使用中」を選ぶ（「正確な位置情報」もオンに）', '本めぐりに戻って、右下の現在地のボタンを押す'] : ['「設定」→「アプリ」→「本めぐり」→「権限」を開く', '「位置情報」→「アプリの使用中のみ許可」を選ぶ（「正確な位置情報を使用」もオンに）', '本めぐりに戻って、右下の現在地のボタンを押す'];
+  } else {
+    h = 'このページに、位置の許可がありません';
+    steps = ios ? ['「設定」→「アプリ」→「Safari」→「位置情報」を「確認」または「許可」にする', 'このページを開き直して、右下の現在地のボタンを押す'] : ['アドレス欄の左の印を押して、「権限」の「位置情報」を許可する', 'このページを開き直して、右下の現在地のボタンを押す'];
+  }
+  openModal(`<h2>📍 ${h}</h2><p class="hint">本めぐりは、近くの本屋さんと図書館を出したり、お店の近くでスタンプを押したりするために、位置を使います。位置は運営者に送りません。</p>${step(steps)}${TRIAL_ON ? '<p class="muted small">位置がなくても、「お試し歩き」で地図を押した場所から試せます。</p>' : ''}
+    <div class="actions">${open ? '<button class="btn primary" id="geo-open">設定を開く</button>' : ''}<button class="btn ghost" id="geo-close">閉じる</button></div>`);
+  if (open) $('#geo-open').onclick = () => { closeModal(); NS.openSettings(); };
+  $('#geo-close').onclick = closeModal;
+}
 export function locate() {
   unlock();
   if (POS.fake) { setTrialUI(false); }
-  const ok = startWatch({ onFirst: (p) => { if (!S.settings.geoOk) { S.settings.geoOk = 1; save(); } MAP.flyTo(p.lon, p.lat, 15); toast(`現在地（誤差 約${Math.round(p.acc)}m）`); }, onError: (err) => { $('#btn-locate').classList.remove('on'); goPrefHome(); toast((err && err.code === 1 ? '位置の許可がありません。ブラウザの設定で許可できます' : '位置が取れませんでした。少しあとで、もう一度') + (TRIAL_ON ? '。「お試し歩き」でも試せます' : ''), 'warn'); } });
+  const ok = startWatch({ onFirst: (p) => { if (!S.settings.geoOk) { S.settings.geoOk = 1; save(); } MAP.flyTo(p.lon, p.lat, 15); toast(`現在地（誤差 約${Math.round(p.acc)}m）`); }, onError: (err) => { $('#btn-locate').classList.remove('on'); goPrefHome(); if (err && (err.off || err.code === 1)) geoHelp(err); else toast(geoErrText(err) + (TRIAL_ON ? '。「お試し歩き」でも試せます' : ''), 'warn'); } });
   if (!ok) { toast('この端末では位置が使えません' + (TRIAL_ON ? '。「お試し歩き」で試せます' : ''), 'warn'); return; }
   $('#btn-locate').classList.add('on'); if (hasPos()) MAP.flyTo(POS.lon, POS.lat, 15); else toast('現在地を確かめています…');
 }
@@ -139,8 +185,20 @@ function pickHTML(st) {
 const mdOf = (d) => (d ? `${Number(d.slice(5, 7))}月${Number(d.slice(8, 10))}日` : '');
 const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return 'サイト'; } };
 function trustHTML(st) { const t = SH.trustOf(st); if (!t) return ''; if (t.k === 'map') return `<div class="trust-warn"><b>△ ${t.pz ? '休業中のようです' : t.shut ? '閉店したかもしれません' : 'まだ確かめられていません'}</b><span>${t.shut ? 'ちがう人から2件以上、閉店の報告が届いています。お出かけ前に、お店のホームページや営業時間を' : esc(t.t)}</span></div>`; return `<div class="trust ${t.k}">✔ ${esc(t.t)}</div>`; } // 確かめていない店は、目立つ枠で（v0.36.0・11/23 ぶっくまさん「B」）
+// 店の発信のリンクは、お店のアカウントのページに（11/27 ぶっくまさん「お店の発信のリンクがこれだとちゃんとでない」。受付に X の1つの投稿のアドレス（/status/…?s=46）が入っていて、「お店の𝕏」が1つの投稿を開いていた）。
+// サーバー 1.15.1（shop_sns_url）と同じそろえ方。Instagram の投稿・シェアのリンクからはアカウントがわからないので、そのまま
+const SNS_NG = { x: ['home', 'search', 'explore', 'i', 'intent', 'share', 'hashtag', 'settings', 'messages', 'notifications'], ig: ['p', 'reel', 'reels', 'share', 'stories', 'explore', 'tv', 'accounts', 'direct', 'about', 'legal', 'developer', 's', 'web', 'challenge', 'oauth', 'tags', 'locations'] };
+function snsUrl(x) {
+  if (!SNS_NG[x.k]) return x.url;
+  try {
+    const u = new URL(x.url), seg = (u.pathname.split('/').filter(Boolean)[0] || '').replace(/^@/, ''), low = seg.toLowerCase();
+    const ok = (x.k === 'x' ? /^[A-Za-z0-9_]{1,15}$/ : /^[A-Za-z0-9._]{1,30}$/).test(seg) && !SNS_NG[x.k].includes(low);
+    if (ok) return x.k === 'x' ? `https://x.com/${low}` : `https://www.instagram.com/${low}/`;
+  } catch (e) {}
+  return x.url;
+}
 function snsHTML(st) {
-  const l = ((st.shop && st.shop.sns) || []).slice();
+  const l = ((st.shop && st.shop.sns) || []).map((x) => ({ ...x, url: snsUrl(x) }));
   // 調べて見つけたお店の公式サイト（v0.36.0・data の w）。お店が自分で登録したものと同じサイトなら重ねない
   if (st.w && /^https?:\/\//.test(st.w) && !l.some((x) => hostOf(x.url) === hostOf(st.w))) l.push({ k: 'web', url: st.w, label: 'お店のホームページ' });
   if (!l.length) return '';
@@ -188,17 +246,51 @@ function dirWarn(st, d) {
   openModal(`<h2>お出かけの前に</h2><p>${t && t.k === 'map' ? 'この店は地図データだけで、本めぐりではまだ確かめられていません。' : ''}${far ? 'ここから10km以上あります。' : ''}閉店やお休みのこともあるので、Googleマップで営業しているかを見てからお出かけください。</p><div class="actions"><a class="btn primary wide" href="${gmapDir(st)}" target="_blank" rel="noopener" id="dw-go">${icon('map')}Googleマップで道順を見る</a><a class="btn wide" href="${gmapPlace(st)}" target="_blank" rel="noopener">${icon('search')}営業時間を見る</a><button class="btn ghost wide" id="dw-no">やめる</button></div>`);
   $('#dw-no').onclick = closeModal; $('#dw-go').addEventListener('click', () => setTimeout(closeModal, 300));
 }
-// 店の前で「お店が見つからない」（v0.26.0・射程内だけ）：怒る場所ではなく、直す場所に
-// 直しの選び方（v0.37.1。11/24 ぶっくまさん「ここが長すぎて使い勝手が悪くなります」→ 4つのボタンと「お店の方へ」を1行に）：「情報がちがう？」を押したときだけ、4つのボタンを出す
+// 店のことを知らせる（11/27 テスターさんの声「その住所に本屋がある、ない、営業してる、していない。これの申告がイマイチわかりづらい」→ ぶっくまさん「この店の情報のまちがいを知らせる」「近くても下記でよい」）
+// 入口は1つ。店の前（射程内・お試し歩きでないとき）は「閉店している」「しばらくお休み」の代わりに「閉まっていた・見つからない」（前の「お店が見つからない」はここにまとめた）
+// 「営業していた」のボタンは外した（11/27 ぶっくまさん「出さなくていいのでは？」。店の前で押すスタンプが「ある・営業している」の知らせを兼ねる＝「最近スタンプが押された」の印）
 function fixMenu(st, near) {
-  const x = $('#sheet-extra'); x.innerHTML = `<div class="actions fix-acts"><button class="btn" data-f="report">${isLib(st) ? '閉館している' : '閉店している'}</button><button class="btn" data-f="rename">名前が違う</button><button class="btn" data-f="moved">場所が違う</button>${near ? '<button class="btn" data-f="notfound">お店が見つからない</button>' : ''}</div>`;
-  $$('#sheet-extra [data-f]').forEach((b) => b.addEventListener('click', () => { sfx.click(); const f = b.dataset.f; if (f === 'moved') movedBox(st); else if (f === 'notfound') notFoundBox(st); else reportBox(st, f); }));
+  const x = $('#sheet-extra'); const lib = isLib(st); const here = near && !POS.fake;
+  x.innerHTML = `<div class="actions fix-acts">${here ? '<button class="btn w" data-f="shut">閉まっていた・見つからない</button>' : `<button class="btn" data-f="report">${lib ? '閉館している' : '閉店している'}</button><button class="btn" data-f="pause">しばらくお休み</button>`}<button class="btn" data-f="rename">名前が違う</button><button class="btn" data-f="moved">場所が違う</button><button class="btn w" data-f="type">種類が違う（新刊・古書・図書館など）</button></div>`;
+  const o = here ? { near: true } : {};
+  $$('#sheet-extra [data-f]').forEach((b) => b.addEventListener('click', () => { sfx.click(); const f = b.dataset.f;
+    if (f === 'shut') shutBox(st); else if (f === 'pause') pauseBox(st, o); else if (f === 'type') typeBox(st, o); else if (f === 'moved') movedBox(st, o); else reportBox(st, f, f === 'rename' ? o : {}); }));
   x.scrollIntoView({ block: 'nearest' });
 }
-function notFoundBox(st) {
+// 閉まっていた・見つからない（店の前だけ）：今日はお休み／しばらくお休み／閉店／見つからない・移転 から選ぶ
+function shutBox(st) {
+  const x = $('#sheet-extra'); const lib = isLib(st);
+  x.innerHTML = `<div class="rp"><b>どうでしたか？</b><div class="muted small">見たままで大丈夫です。</div><div class="actions fix-acts"><button class="btn w" data-s="holiday">今日はお休みだった（定休日など）</button><button class="btn w" data-s="pause">しばらくお休み（長期休業の貼り紙など）</button><button class="btn w" data-s="closed">${lib ? '閉館していた' : '閉店していた'}</button><button class="btn w" data-s="moved">${lib ? '図書館' : 'お店'}が見つからない・移転していた</button><button class="btn ghost w" data-s="no">やめる</button></div></div>`;
+  x.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => { sfx.click(); const k = b.dataset.s;
+    if (k === 'no') x.innerHTML = ''; else if (k === 'holiday') holidayBox(st); else if (k === 'pause') pauseBox(st, { near: true }); else if (k === 'closed') reportBox(st, 'report', { near: true, why: lib ? '閉館していた' : '閉店していた' }); else movedBox(st, { near: true, why: '見つからない・移転' }); }));
+  x.scrollIntoView({ block: 'nearest' });
+}
+// 今日はお休みだった：運営への記録だけ（地図はそのまま）
+function holidayBox(st) {
   const x = $('#sheet-extra');
-  x.innerHTML = `<div class="rp"><b>お店が見つかりませんか？</b><div class="muted small">教えていただくと、運営が確かめて、みんなの地図を直します。</div>${REWARD(false)}<div class="actions"><button class="btn" data-nf="closed">閉店していた</button><button class="btn" data-nf="moved">移転したみたい</button><button class="btn" data-nf="rename">名前がちがった</button><button class="btn ghost" data-nf="no">やめる</button></div></div>`;
-  x.querySelectorAll('[data-nf]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.nf; if (k === 'no') { x.innerHTML = ''; return; } if (k === 'moved') { movedBox(st, { near: true, why: '移転したみたい' }); return; } reportBox(st, k === 'rename' ? 'rename' : 'report', { near: true, why: k === 'closed' ? '閉店していた' : '' }); })); // 移転は「場所が違う」で（v0.36.6。前は閉店の報告になっていた）
+  x.innerHTML = `<div class="rp"><b>今日はお休みだった</b><div class="muted small">運営に記録として知らせます。定休日や臨時のお休みでは、地図はそのままです。</div>${NOTE_IN('定休日は水曜と貼り紙')}<div class="actions"><button class="btn primary" id="hd-ok">知らせる</button><button class="btn ghost" id="hd-no">やめる</button></div></div>`;
+  $('#hd-no').onclick = () => { x.innerHTML = ''; };
+  $('#hd-ok').onclick = () => { if (!st.demo && !st.custom) E.queueReport({ kind: 'holiday', store: st.i, orig: st.n, note: $('#rp-note').value.trim().slice(0, 100) }); x.innerHTML = ''; toast('ありがとうございます。運営に知らせました', 'ok'); };
+  x.scrollIntoView({ block: 'nearest' });
+}
+// しばらくお休み：運営が確かめて「休業中」の印（地図からは外さない・スタンプは押せる）
+function pauseBox(st, o = {}) {
+  const x = $('#sheet-extra'); const pw = placeWord(st); const tag = (nt) => (o.near ? '【店の前から】' : '') + nt;
+  x.innerHTML = `<div class="rp"><b>この${pw}は、しばらくお休みですか？</b><div class="muted small">運営が確かめてから、みんなの地図に「休業中」の印を付けます（地図からは外しません）。</div>${REWARD(false)}${NOTE_IN('12月10日まで改装でお休みと貼り紙')}<div class="actions"><button class="btn primary" id="pz-ok">運営に知らせる</button><button class="btn ghost" id="pz-no">やめる</button></div></div>`;
+  $('#pz-no').onclick = () => { x.innerHTML = ''; };
+  $('#pz-ok').onclick = () => { if (!st.demo && !st.custom) E.queueReport({ kind: 'pause', store: st.i, orig: st.n, note: tag($('#rp-note').value.trim().slice(0, 100)) }); x.innerHTML = ''; toast(`ありがとうございます。${THANKS}`, 'ok'); };
+  x.scrollIntoView({ block: 'nearest' });
+}
+// 種類が違う：新刊・古書・新刊も古書も・ブックカフェ・図書館・本屋ではない（神保町のように、いろいろな店が並ぶ所で。ブックカフェは、まだ地図の種類にないので報告として集めるだけ）
+const TYPES = [['book', '新刊の本屋'], ['used', '古書店（古本屋）'], ['both', '新刊も古書もある'], ['cafe', 'ブックカフェ（本が読める・買えるカフェ）'], ['lib', '図書館'], ['none', '本屋ではない（ギャラリー・事務所・倉庫など）']];
+const typeNow = (st) => (isLib(st) ? 'lib' : st.ub ? 'both' : st.u ? 'used' : 'book');
+function typeBox(st, o = {}) {
+  const x = $('#sheet-extra'); const now = typeNow(st); const tag = (nt) => (o.near ? '【店の前から】' : '') + nt;
+  x.innerHTML = `<div class="rp"><b>この${placeWord(st)}の種類は？</b><div class="muted small">いまは「${TYPES.find((t) => t[0] === now)[1]}」として載っています</div>${TYPES.map(([k, l]) => `<label class="chk"><input type="radio" name="ty" value="${k}"${k === now ? ' disabled' : ''}> ${l}${k === now ? '（いまの種類）' : ''}</label>`).join('')}${REWARD(false)}${NOTE_IN('洋書の古書店')}<div class="actions"><button class="btn primary" id="ty-ok">運営に知らせる</button><button class="btn ghost" id="ty-no">やめる</button></div></div>`;
+  $('#ty-no').onclick = () => { x.innerHTML = ''; };
+  $('#ty-ok').onclick = () => { const v = ($('#sheet-extra input[name=ty]:checked') || {}).value; if (!v) { toast('種類を選んでください', 'warn'); return; }
+    if (!st.demo && !st.custom) E.queueReport({ kind: 'type', store: st.i, orig: st.n, place: v, note: tag($('#rp-note').value.trim().slice(0, 100)) }); x.innerHTML = ''; toast(`ありがとうございます。${THANKS}`, 'ok'); };
+  x.scrollIntoView({ block: 'nearest' });
 }
 // 閉店している・名前が違う（v0.17.0）：この端末の地図はすぐ直し、「運営にも知らせる」なら報告を送る（確かめてから、みんなの地図も直る）
 const SEND_CHK = (what) => `<label class="chk rp-send"><input type="checkbox" id="rp-send" checked> 運営にも知らせる（確かめてから、みんなの地図も${what}）</label>`;
@@ -261,11 +353,11 @@ function pickOnMap(st, done) {
 }
 export function openSheet(id, quiet) {
   const st = BYID.get(id); if (!st) return;
-  const vs = G.visitsOf(id), cs = G.cardsOf(id), want = S.wants.includes(id), stamp = S.stamps[id], r = rarityOf(st), feat = isFeat(st.i), reg = G.regularInfo(id);  const d = hasPos() ? dist(POS.lat, POS.lon, st.la, st.lo) : null; const near = !st.closed && d != null && d <= RANGE_M && !jumped();
+  const vs = G.visitsOf(id), cs = G.cardsOf(id), want = S.wants.includes(id), stamp = S.stamps[id], r = rarityOf(st), feat = isFeat(st.i), reg = G.regularInfo(id);  const { d, near, text: distText, key: posKey } = sheetPos(st);
   const b = [];
   if (st.closed) b.push('<span class="badge">閉店（みんなの地図から外しました）</span>'); if (st.demo) b.push('<span class="badge">見本（実在しません）</span>'); if (st.custom) b.push('<span class="badge">自分で追加</span>'); if (st.fix) b.push('<span class="badge">名前を直した（この端末）</span>'); if (st.ov) b.push('<span class="badge">名前を確認ずみ</span>'); if (st.sw) b.push('<span class="badge ao">店のサイト・SNSで確認</span>'); else if (st.cf || st.x) b.push('<span class="badge ao">公式一覧で確認</span>');
   if (st.part && st.part.fresh) b.push(`<span class="badge part">参加店</span>${st.part.isNew ? '<span class="badge new">新しく届いた</span>' : ''}`); // v0.27.0
-  if (feat) b.push(`<span class="badge feat">${icon('crown')}今週の推し店</span>`); if (st.u) b.push('<span class="badge">古書店</span>'); if (isLib(st)) b.push('<span class="badge lib">図書館</span>');
+  if (feat) b.push(`<span class="badge feat">${icon('crown')}今週の推し店</span>`); if (st.u) b.push(st.ub ? '<span class="badge">新刊・古書</span>' : '<span class="badge">古書店</span>'); if (isLib(st)) b.push('<span class="badge lib">図書館</span>');
   b.push(stamp ? `<span class="badge shu">スタンプ ${fmtDate(stamp.d)}</span>${stamp.trial ? '<span class="badge trial">体験</span>' : ''}` : vs.length ? `<span class="badge sumi">記録 ${vs.length}回</span>` : '<span class="badge">まだ</span>');
   for (const e of E.liveEvents().filter((x) => E.isTarget(x, st)).slice(0, 2)) { const fr = E.frameFor(e, st); b.push(`<span class="badge evb" style="--evc:${esc(fr.color)}">${esc(fr.label || e.name)}${fr === e.special ? '（特別な枠）' : '（イベント）'}</span>`); }
   const evn = E.liveEvents().find((x) => E.narrow(x) && E.isTarget(x, st)); // 参加店の一覧へ（v0.18.1）
@@ -274,7 +366,6 @@ export function openSheet(id, quiet) {
   const rec = st.rec ? (st.rec.srv ? srvPickHTML(st) : pickHTML(st)) : '';
   const warnDir = !near && !st.closed && !st.demo && !st.custom && !POS.fake && ((SH.trustOf(st) || {}).k === 'map' || (d != null && d > 10000)); // 道順の前のひとこと（v0.26.0）
   const hist = vs.length ? `<div class="muted small" style="margin-top:8px">${vs.slice(-3).reverse().map((v) => `${fmtDate(v.d)}${v.near ? '（スタンプ）' : '（記録）'}${v.memo ? '「' + esc(v.memo) + '」' : ''}`).join('<br>')}</div>` : '';
-  const distText = st.closed ? '' : d == null ? '現在地なし' : jumped() ? '位置が大きく飛んだので、少し待ってから（1分）' : near ? `射程内（約${fmtDist(d)}）` : `ここから約${fmtDist(d)}（あと${fmtDist(d - RANGE_M)}で射程内）`;
   const srcLine = `情報：${st.srv ? '本めぐりの運営が追加' : st.ob ? 'SNS推し本大賞2026 展開店舗一覧' : st.wk ? '全国書店案内などの名簿（最新の営業は未確認）' : st.sw ? '店のホームページ・SNS' : st.x ? 'チェーンの公式店舗一覧' : 'OpenStreetMap'}${st.c ? `・${st.c.slice(0, 4)}年${Number(st.c.slice(5))}月に確認` : ''}${st.cf || st.x || st.srv || st.wk ? '' : '（古いことがあります）'}`;
   // いちばん大きいボタン（v0.14.5）：射程内＝スタンプ／離れている＝道順（Googleマップ）／お試し歩き＝ワープ。「来た記録だけ」は下の段へ
   const main = st.closed ? '<div class="note">この店は閉店しました。押したスタンプと記録は、めぐり帳に残っています。</div>'
@@ -286,7 +377,7 @@ export function openSheet(id, quiet) {
   $('#sheet-body').innerHTML = `${coverHTML(st)}
     <div class="sheet-head"><div class="stamp-sm">${stampSVG(st, !!stamp, 72, { rank: reg.rank, ev: stamp ? E.storeFrame(st.i) : null })}</div><div style="min-width:0"><h2>${esc(st.n)}</h2><div class="stars">${stars(r)} <span class="muted small">${esc(rarityText(st))}</span></div></div></div>
     <div style="margin-top:8px">${b.join('')}</div>${evl}
-    <div class="muted small">${esc(distText)}</div>${trustHTML(st)}
+    <div class="muted small" id="sheet-dist">${esc(distText)}</div>${trustHTML(st)}
     <div class="actions">${main}</div>${snsHTML(st)}${rec}${fairsHTML(st)}${shelfHTML(st)}
     <div class="actions">
       ${st.closed ? '' : `<button class="btn" data-act="card">${icon('barcode')}本と出会った</button>
@@ -297,7 +388,7 @@ export function openSheet(id, quiet) {
       ${st.demo || st.closed ? '' : '<div class="muted small" style="grid-column:1/-1;width:100%">営業時間・道順は、Googleマップが開きます</div>'}
     </div>${st.demo ? '' : `<div class="reg"><div class="reg-h"><span class="badge ${reg.rank >= 3 ? 'shu' : reg.rank >= 2 ? 'gold' : ''}">常連度 ${reg.rank ? esc(reg.name) : 'まだ'}</span><span class="muted small">来店 ${reg.days}日${reg.next ? `・あと${reg.toNext}日で「${esc(reg.next.name)}」` : '・最高位'}</span></div><div class="rally" role="img" aria-label="常連度 ${G.REGULAR_NAMES.length}段階のうち${reg.rank}">${G.REGULAR_NAMES.map((nm, k) => `<i class="${k < reg.rank ? (k === G.REGULAR_NAMES.length - 1 ? 'top' : 'on') : ''}" title="${esc(nm)}">${k < reg.rank ? icon('check') : ''}</i>`).join('')}</div><div class="rally-l"><span>${esc(G.REGULAR_NAMES[0])}</span><span>${esc(G.REGULAR_NAMES[G.REGULAR_NAMES.length - 1])}</span></div></div>`}${hist}
     <div class="muted small" style="margin-top:10px">${st.a ? `${esc(st.a)}　${esc(prefOf(st))}` : st.aa ? `${esc(st.aa)} 付近<span class="addr-note">（位置からの目安）</span>` : `${st.custom ? '' : '住所の情報なし（地図データより）'}　${esc(prefOf(st))}`}</div>${st.demo || st.custom ? '' : `<div class="muted small">${esc(srcLine)}</div>`}
-    ${st.demo || st.custom || st.closed ? '' : `<div class="fix-row"><button class="fix-open" data-act="fixmenu">${icon('flag')}<span><b>情報がちがう？</b><small>${(SH.trustOf(st) || {}).k === 'map' ? 'まだ確かめられていない店です・' : ''}直ったら +${MAP_CREDIT.fix}ページ</small></span></button>${st.part ? '' : `<button class="linkish" data-act="join">${isLib(st) ? '図書館' : 'お店'}の方へ</button>`}</div>`}
+    ${st.demo || st.custom || st.closed ? '' : `<div class="fix-row"><button class="fix-open" data-act="fixmenu">${icon('flag')}<span><b>この${placeWord(st)}の情報のまちがいを知らせる</b><small>${isLib(st) ? '閉館' : '閉店'}・名前・場所・種類がちがうとき</small></span></button>${st.part ? '' : `<button class="linkish" data-act="join">${isLib(st) ? '図書館' : 'お店'}の方へ</button>`}</div>`}
     <div id="sheet-extra"></div>`;
   mountX($('#sheet-body')); // お店の X の投稿（v0.35.0）
   const fm = $('#sheet-body .fair-more-btn'); if (fm) fm.onclick = () => { const box = $('#sheet-body .fair-more'); if (!box) return; box.hidden = false; fm.remove(); mountX(box); };
@@ -311,11 +402,10 @@ export function openSheet(id, quiet) {
     else if (a === 'fixmenu') fixMenu(st, near);
     else if (a === 'report' || a === 'rename') reportBox(st, a);
     else if (a === 'dir') dirWarn(st, d);
-    else if (a === 'notfound') notFoundBox(st);
     else if (a === 'moved') movedBox(st);
     else if (a === 'join') openInbox('join', { store: { i: st.i, n: st.n, lib: isLib(st) } }); // 参加の申し込み（v0.37.0・まだ参加店でない店だけ）
     else { const r2 = G.toggleWant(id); applyMapStates(); refreshHud(); openSheet(id, true); r2.rewards.forEach((x) => toast(x, 'ok')); } }));
-  const sheet = $('#sheet'); sheet.dataset.id = id; sheet.hidden = false;
+  const sheet = $('#sheet'); sheet.dataset.id = id; sheet.dataset.pk = posKey; sheet.hidden = false;
   if (!quiet) { if (currentView !== 'map') switchView('map'); MAP.flyTo(st.lo, st.la, 14); G.noteLook(id).forEach((x) => toast(x, 'ok')); refreshHud(); }
 }
 // ---------- 地図の吹き出し（v0.27.0）：寄せたとき、参加店のピンから書店員さんのヒント ----------
@@ -365,7 +455,7 @@ export function setupSearch() {
 export function startAdd(at) { // at：地図を長押しした所 { lat, lng }（v0.31.0）
   const c = MAP.center(); const first = at ? 'at' : hasPos() ? 'here' : 'center';
   openModal(`<h2>地図にない本屋を知らせる</h2><p class="hint">運営が確かめてから、みんなの地図に載せます（すぐには出ません）。送るのは、店の名前と場所と、書いたひとことだけです。</p>${REWARD(true)}
-    <div class="field"><label for="ad-name">店の名前</label><input type="text" id="ad-name" placeholder="例：○○書店 △△店"></div><label class="chk"><input type="checkbox" id="ad-used"> 古書店</label>
+    <div class="field"><label for="ad-name">店の名前</label><input type="text" id="ad-name" placeholder="例：○○書店 △△店"></div><div class="field"><label>種類</label>${[['book', '新刊の本屋'], ['used', '古書店（古本屋）'], ['cafe', 'ブックカフェ（本が読める・買えるカフェ）'], ['lib', '図書館'], ['unk', 'わからない']].map(([k, l]) => `<label class="chk"><input type="radio" name="ad-kind" value="${k}"> ${l}</label>`).join('')}</div>
     <div class="field"><label>場所</label>${at ? `<label class="chk"><input type="radio" name="ad-pos" value="at" checked> 長押しした所（${at.lat.toFixed(4)}, ${at.lng.toFixed(4)}）</label>` : ''}<label class="chk"><input type="radio" name="ad-pos" value="here" ${hasPos() ? '' : 'disabled'} ${first === 'here' ? 'checked' : ''}> いまいる場所</label><label class="chk"><input type="radio" name="ad-pos" value="center" ${first === 'center' ? 'checked' : ''}> いま地図の真ん中（${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}）</label><label class="chk"><input type="radio" name="ad-pos" value="addr"> 住所で</label><div class="two ad-addr"><input type="text" class="in" id="ad-addr" maxlength="80" placeholder="例：大阪府大阪市北区梅田3-1-3" enterkeyhint="search"><button type="button" class="btn" id="ad-addr-go">さがす</button></div><div class="muted small" id="ad-addr-out">住所は、場所を調べるために国土地理院の住所検索に送ります。</div></div>
     ${NOTE_IN('2階にある古本屋')}
     <div class="actions"><button class="btn primary" id="ad-save">運営に知らせる</button><button class="btn ghost" id="ad-cancel">やめる</button></div>`);
@@ -380,6 +470,6 @@ export function startAdd(at) { // at：地図を長押しした所 { lat, lng }�
   $('#ad-addr-go').onclick = findAddr; $('#ad-addr').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); findAddr(); } });
   $('#ad-save').onclick = () => { const n = $('#ad-name').value.trim(); if (!n) { toast('店の名前を入れてください', 'warn'); return; }
     if ($('input[name=ad-pos]:checked').value === 'addr' && !byAddr) { toast('住所の「さがす」を押して、場所を見つけてください', 'warn'); return; } let la = c.lat, lo = c.lng; const pick = $('input[name=ad-pos]:checked').value; if (pick === 'here' && hasPos()) { la = POS.lat; lo = POS.lon; } else if (pick === 'at' && at) { la = at.lat; lo = at.lng; } else if (pick === 'addr' && byAddr) { la = byAddr.lat; lo = byAddr.lng; }
-    E.queueReport({ kind: 'add', store: 'u' + Date.now(), name: n.slice(0, 80), lat: +la.toFixed(5), lon: +lo.toFixed(5), place: $('#ad-used').checked ? 'used' : 'book', note: $('#rp-note').value.trim().slice(0, 100) }); // つながらないときは、あとで送る
+    E.queueReport({ kind: 'add', store: 'u' + Date.now(), name: n.slice(0, 80), lat: +la.toFixed(5), lon: +lo.toFixed(5), place: ($('input[name=ad-kind]:checked') || {}).value || 'unk', /* 種類（11/27：前は「古書店」のチェックだけ。ブックカフェ・わからない はサーバー 1.16.0 から） */ note: $('#rp-note').value.trim().slice(0, 100) }); // つながらないときは、あとで送る
     closeModal(); toast(`運営に知らせました。確かめて地図に載ったら、+${MAP_CREDIT.add}ページと称号「開拓者」をお届けします`, 'ok'); };
 }

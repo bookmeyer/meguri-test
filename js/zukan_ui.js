@@ -1,39 +1,51 @@
 // めぐり帳（view-zukan）：スタンプ・本・物語・月のふり返り・県
-import { pagesForVol, frameOf, PREFS } from './config.js?v=0.37.9';
-import { esc, icon, $, todayISO, $$, fmtDate, prefOf, fmtMin } from './util.js?v=0.37.9';
-import { S, save } from './state.js?v=0.37.9';
-import { BYID, rarityOf, STORES, stampSVG } from './data.js?v=0.37.9';
-import * as G from './game.js?v=0.37.9';
-import * as E from './events.js?v=0.37.9';
-import { storyImage, shareBlob, profileImage } from './share.js?v=0.37.9';
-import * as J from './journey.js?v=0.37.9';
-import * as R from './reading.js?v=0.37.9';
-import { toast, openModal, closeModal, currentSub, emptyBox } from './ui.js?v=0.37.9';
-import { openSheet, startAdd } from './map_ui.js?v=0.37.9';
-import { openCard } from './card_ui.js?v=0.37.9';
-import { renderReading } from './reading_ui.js?v=0.37.9';
-import { nameModal } from './settings_ui.js?v=0.37.9';
-import { profileComplete } from './profile_ui.js?v=0.37.9';
-import { prologueHTML } from './quiz_ui.js?v=0.37.9'; // 物語のプロローグ（v0.33.0）
-import { openTitles } from './titles_ui.js?v=0.37.9'; // 称号の一覧（v0.33.2）
+import { pagesForVol, frameOf, PREFS } from './config.js?v=0.39.0';
+import { esc, icon, $, todayISO, $$, fmtDate, prefOf, fmtMin, APPX, APPX_READ } from './util.js?v=0.39.0';
+import { S, save } from './state.js?v=0.39.0';
+import { BYID, rarityOf, STORES, stampSVG } from './data.js?v=0.39.0';
+import * as G from './game.js?v=0.39.0';
+import * as E from './events.js?v=0.39.0';
+import { storyImage, shareBlob, profileImage } from './share.js?v=0.39.0';
+import * as J from './journey.js?v=0.39.0';
+import * as R from './reading.js?v=0.39.0';
+import { toast, openModal, closeModal, currentSub, emptyBox } from './ui.js?v=0.39.0';
+import { openSheet, startAdd } from './map_ui.js?v=0.39.0';
+import { openCard } from './card_ui.js?v=0.39.0';
+import { renderReading } from './reading_ui.js?v=0.39.0';
+import { nameModal } from './settings_ui.js?v=0.39.0';
+import { profileComplete } from './profile_ui.js?v=0.39.0';
+import { prologueHTML } from './quiz_ui.js?v=0.39.0'; // 物語のプロローグ（v0.33.0）
+import { openTitles } from './titles_ui.js?v=0.39.0'; // 称号の一覧（v0.33.2）
+import { diaryHTML, diaryTeaser, openDiary, pickDayDiary } from './diary.js?v=0.39.0'; // 日記（v0.39.0）
+import { renderCardBox } from './readcard.js?v=0.39.0'; // 読書カード（v0.39.0）
+import { renderShopTab } from './myshop_ui.js?v=0.39.0'; // 自分の本屋（v0.39.0）
 
 // ---------- 今日の物語 ----------
-function chapterHTML(ch) {
-  const body = ch.empty ? `<p class="muted">${esc(ch.blank)}</p>` : ch.lines.map((l) => `<p>${esc(l.s)}${l.url && /^https?:\/\/(www\.|mobile\.)?(x|twitter)\.com\//i.test(l.url) ? ` <a href="${esc(l.url)}" target="_blank" rel="noopener">投稿を見る</a>` : ''}</p>`).join('');
+function chapterHTML(ch, today = false) {
+  const body = ch.empty ? (ch.diary ? '' : `<p class="muted">${esc(ch.blank)}</p>`) : ch.lines.map((l) => `<p>${esc(l.s)}${l.url && /^https?:\/\/(www\.|mobile\.)?(x|twitter)\.com\//i.test(l.url) ? ` <a href="${esc(l.url)}" target="_blank" rel="noopener">投稿を見る</a>` : ''}</p>`).join('');
   const walked = ch.m >= 100;
   const stats = [`${icon('book')}この日 +${ch.earned}ページ`, walked ? `歩いて${ch.pages}ページ・${ch.km}km` : '', walked ? `歩数の目安 ${J.stepsOf(ch.m).toLocaleString()}歩` : '', ch.nStores ? `訪ねた場所 ${ch.nStores}か所` : '', ch.nCards ? `出会った本 ${ch.nCards}冊` : '', ch.nRead ? `読書 ${ch.nRead}回${ch.nMove ? `（移動読書 ${ch.nMove}回）` : ''}${ch.readMin ? `・${fmtMin(ch.readMin)}` : ''}` : '', ch.v >= 1000 ? `乗り物 ${J.kmOf(ch.v)}km` : ''].filter(Boolean);
-  return `<div class="story"><div class="ch-sub">本めぐり　${S.settings.handle ? esc(S.settings.handle) + 'の物語' : 'その日の物語'}</div><div class="ch-title">${esc(ch.title)}</div><div class="story-body">${body}</div><div class="story-stats">${stats.map((s) => `<span>${s}</span>`).join('')}</div></div>`;
+  return `<div class="story"><div class="ch-sub">本めぐり　${S.settings.handle ? esc(S.settings.handle) + 'の物語' : 'その日の物語'}</div><div class="ch-title">${esc(ch.title)}</div><div class="story-body">${body}</div><div class="story-stats">${stats.map((s) => `<span>${s}</span>`).join('')}</div>${APPX ? diaryHTML(ch.date) : today ? diaryTeaser() : ''}</div>`; // 日記はアプリ版だけ
 }
-async function shareChapter(date) { try { const ch = J.chapter(date); const blob = await storyImage(ch, S.settings.avatar, S.settings.handle); const r = await shareBlob(blob, `story-${date}.png`, ch.title, `${ch.title}　+${ch.earned}ページ・${ch.nStores}か所 #本めぐり`); if (r !== 'cancel') { G.noteShare('story', '', r); toast(r === 'saved' ? '画像を保存しました' : 'シェアしました', 'ok'); renderStory(); } } catch (e) { toast('画像にできませんでした', 'warn'); } }
+// 日記がある日は、画像に入れるかを選ぶ（はじめは入れない。v0.39.0）
+function shareChapter(date) { const ch = J.chapter(date); if (!ch.diary) { doShareChapter(date, false); return; }
+  openModal(`<h2>この日の物語をシェア</h2><p class="hint">画像にする前に、えらんでください。</p><label class="chk"><input type="checkbox" id="sc-dy"> 「この日のこと」（日記）も画像に入れる</label><p class="muted small">入れないときは、日記は画像に出ません。</p><div class="actions"><button class="btn primary" id="sc-go">画像にする</button><button class="btn ghost" id="sc-no">やめる</button></div>`);
+  $('#sc-no').onclick = closeModal; $('#sc-go').onclick = () => { const on = $('#sc-dy').checked; closeModal(); doShareChapter(date, on); }; }
+async function doShareChapter(date, withDiary) { try { const ch = J.chapter(date); const blob = await storyImage(ch, S.settings.avatar, S.settings.handle, { diary: withDiary ? ch.diary : '' }); const r = await shareBlob(blob, `story-${date}.png`, ch.title, `${ch.title}　+${ch.earned}ページ・${ch.nStores}か所 #本めぐり`); if (r !== 'cancel') { G.noteShare('story', '', r); toast(r === 'saved' ? '画像を保存しました' : 'シェアしました', 'ok'); renderStory(); } } catch (e) { toast('画像にできませんでした', 'warn'); } }
 export function renderStory() {
   const box = $('#story-today'), list = $('#chapters'); if (!box) return;
   const ch = J.chapter(todayISO());
-  box.innerHTML = chapterHTML(ch) + `<div class="actions"><button class="btn primary" id="sy-share">${icon('share')}今日の物語をシェア</button><button class="btn" id="sy-post">${icon('pen')}Xの投稿を記録</button></div><div class="note">歩いた距離は、現在地を追っているあいだと、店と店のあいだを数えます（100mで1ページ）。閉じて歩いた分は、次の店でスタンプを押したときに、前の店からのまっすぐの距離で足します。歩数は距離からの目安です。</div>`;
-  $('#sy-share').onclick = () => shareChapter(todayISO()); $('#sy-post').onclick = postModal;
+  // 本にする機能の「ほしい」（11/27 ぶっくまさん「ほしい方は押してください → これ入れたい」）：押した回数だけ送る（ポリシー 2026-11-26 に同意した人だけ。中身は送らない）。1つの端末で1回
+  const wish = S.wishBook ? '<div class="wish-book done"><span>「ほしい」を送りました。ありがとうございます。できたら、ここでお知らせします</span></div>' : `<div class="wish-book"><span>日記と物語を、1冊の本にできるようにしたいと考えています。ほしい方は押してください</span><button class="btn" id="wish-book">${icon('heart')}ほしい</button></div>`;
+  box.innerHTML = chapterHTML(ch, true) + wish + `<div class="actions"><button class="btn primary" id="sy-share">${icon('share')}今日の物語をシェア</button><button class="btn" id="sy-post">${icon('pen')}Xの投稿を記録</button>${APPX ? `<button class="btn" id="sy-diary">${icon('pen')}ほかの日のことを書く</button>` : ''}</div>${APPX_READ && !(APPX && S.shop) ? '<div id="rc-box"></div>' : ''}<div class="note">歩いた距離は、現在地を追っているあいだと、店と店のあいだを数えます（100mで1ページ）。閉じて歩いた分は、次の店でスタンプを押したときに、前の店からのまっすぐの距離で足します。歩数は距離からの目安です。</div>`;
+  if ($('#wish-book')) $('#wish-book').onclick = () => { S.wishBook = todayISO(); save(); E.countAct('wish', 'wbook', 'book'); toast('ありがとうございます。届きました', 'ok'); renderStory(); };
+  $('#sy-share').onclick = () => shareChapter(todayISO()); $('#sy-post').onclick = postModal; if ($('#sy-diary')) $('#sy-diary').onclick = pickDayDiary;
+  if ($('#rc-box')) renderCardBox($('#rc-box')); // 読書カード（自分の本屋を開いた人は「自分の本屋」の営業カレンダー）
   const past = J.chapters(40).filter((c) => c.date !== todayISO());
   const pro = profileComplete(S.profile) ? `<details class="chap chap-pro"><summary><b>プロローグ</b><span class="muted small">物語のはじまり</span></summary>${prologueHTML()}</details>` : ''; // 9つの質問の答えから（v0.33.0）。いちばん古い章のあと＝物語の最初
-  list.innerHTML = (past.length ? past.map((c) => `<details class="chap"><summary><b>${esc(c.title)}</b><span class="muted small">${c.pages}ページ${c.nStores ? `・${c.nStores}か所` : ''}${c.nCards ? `・本${c.nCards}冊` : ''}</span></summary>${chapterHTML(c)}<div class="actions"><button class="btn" data-share="${esc(c.date)}">${icon('share')}この日の物語をシェア</button></div></details>`).join('') : pro ? '<div class="muted small">歩いた日・本屋に行った日ごとに、プロローグの上に1章ずつ増えていきます。</div>' : '<div class="muted small">まだ前の章はありません。歩いた日・本屋に行った日ごとに、1章ずつ増えていきます。</div>') + pro;
+  list.innerHTML = (past.length ? past.map((c) => `<details class="chap"><summary><b>${esc(c.title)}</b><span class="muted small">${c.pages}ページ${c.nStores ? `・${c.nStores}か所` : ''}${c.nCards ? `・本${c.nCards}冊` : ''}${c.diary ? '・日記' : ''}</span></summary>${chapterHTML(c)}<div class="actions"><button class="btn" data-share="${esc(c.date)}">${icon('share')}この日の物語をシェア</button></div></details>`).join('') : pro ? '<div class="muted small">歩いた日・本屋に行った日ごとに、プロローグの上に1章ずつ増えていきます。</div>' : '<div class="muted small">まだ前の章はありません。歩いた日・本屋に行った日ごとに、1章ずつ増えていきます。</div>') + pro;
   $$('#chapters [data-share]').forEach((b) => b.addEventListener('click', () => shareChapter(b.dataset.share)));
+  $$('#sub-log [data-dy]').forEach((b) => b.addEventListener('click', () => openDiary(b.dataset.dy))); // この日のことを書く・直す
 }
 function postModal() {
   const today = todayISO(); const ids = [...new Set(S.visits.filter((v) => v.d === today).map((v) => v.s))]; const opts = ids.map((id) => BYID.get(id)).filter(Boolean);
@@ -87,7 +99,7 @@ export function renderZukan() {
   $$('.sub[id^="sub-"]').forEach((el) => el.classList.toggle('active', el.id === 'sub-' + currentSub));
   const fr = frameOf(lv); const ids = Object.keys(S.stamps);
   const stamped = ids.map((id) => ({ st: BYID.get(id), d: S.stamps[id].d, trial: S.stamps[id].trial })).filter((x) => x.st).sort((a, b) => b.d.localeCompare(a.d));
-  $('#stamp-grid').innerHTML = stamped.length ? `<div class="hint" style="grid-column:1/-1">${fr ? `第${lv}巻の額縁：${['', '銅', '銀', '金'][fr]}` : '第3巻になるとスタンプに額縁が付きます'}　スタンプは全部で ${STORES.length.toLocaleString()}種類</div>` + stamped.map(({ st, d, trial }) => { const reg = G.regularInfo(st.i); return `<div class="st f${fr}" data-id="${esc(st.i)}">${stampSVG(st, true, 76, { rank: reg.rank, ev: E.storeFrame(st.i) })}<div class="n">${esc(st.n)}</div>${reg.rank >= 2 ? `<div class="n reg">${esc(reg.name)}・${reg.days}日</div>` : `<div class="n">${fmtDate(d)}${trial ? '・体験' : ''}</div>`}</div>`; }).join('') : emptyBox('stamp', '店の射程内（120m）で「スタンプを押す」と、ここに並びます。家で試すなら お試し歩き → ワープ。');
+  $('#stamp-grid').innerHTML = stamped.length ? `<div class="hint" style="grid-column:1/-1">${fr ? `第${lv}巻の額縁：${['', '銅', '銀', '金'][fr]}` : '第3巻になるとスタンプに額縁が付きます'}　スタンプは全部で ${STORES.length.toLocaleString()}種類</div>` + stamped.map(({ st, d, trial }) => { const reg = G.regularInfo(st.i); return `<div class="st f${fr}" data-id="${esc(st.i)}">${stampSVG(st, true, 76, { rank: reg.rank, ev: E.storeFrame(st.i) })}<div class="n">${esc(st.n)}</div>${reg.rank >= 2 ? `<div class="n reg">${esc(reg.name)}・${reg.days}日</div>` : `<div class="n">${fmtDate(d)}${trial ? '・体験' : ''}</div>`}</div>`; }).join('') : emptyBox('stamp', '店の射程内（180m）で「スタンプを押す」と、ここに並びます。家で試すなら お試し歩き → ワープ。');
   $$('#stamp-grid .st').forEach((el) => el.addEventListener('click', () => openSheet(el.dataset.id)));
   // 本：いま読んでいる本・読み終えた本（v0.14）と、出会った本のカード
   renderReading();
@@ -101,7 +113,7 @@ export function renderZukan() {
   let last = '', html = ''; for (const r of rows) { if (r.d !== last) { html += `<div class="date">${fmtDate(r.d)}</div>`; last = r.d; } html += `<div class="item" data-id="${esc(r.id)}">${r.html}</div>`; }
   $('#visit-list').innerHTML = html || emptyBox('map', 'まだ記録はありません。');
   $$('#visit-list .item').forEach((el) => el.addEventListener('click', () => openSheet(el.dataset.id)));
-  renderStory(); renderMonth();
+  renderStory(); renderMonth(); renderShopTab(); // ブラウザ版では「アプリ版のみ」の案内（11/26）
   // 県
   const pc = {}; ids.forEach((id) => { const s = BYID.get(id); if (s) { const p = prefOf(s); pc[p] = (pc[p] || 0) + 1; } });
   $('#prefs').innerHTML = PREFS.map(([n]) => { const c = pc[n] || 0; return `<div class="p ${c >= 3 ? 'v2' : c ? 'v1' : ''}" title="${esc(n)} ${c}">${esc(n.replace(/[都府県]$/, ''))}</div>`; }).join('');

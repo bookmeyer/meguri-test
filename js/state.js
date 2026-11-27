@@ -1,6 +1,6 @@
 // 記録（この端末の中だけ）。版の違いを吸収して読み込み、まとめて書き込む
-import { SKINS, MAP_SKINS, STORAGE_KEY, LEGACY_KEYS, APP_VER, PROFILE_Q } from './config.js?v=0.37.9';
-import { $, emit, debounce } from './util.js?v=0.37.9';
+import { SKINS, MAP_SKINS, STORAGE_KEY, LEGACY_KEYS, APP_VER, PROFILE_Q, DIARY_MAX } from './config.js?v=0.39.0';
+import { $, emit, debounce, NATIVE } from './util.js?v=0.39.0';
 
 export const empty = () => ({
   v: 4, visits: [], cards: [], wants: [], custom: [], stamps: {}, pg: 0, pgDay: {},
@@ -29,9 +29,23 @@ function cleanProfile(p) {
   }
   return { a, d: isDay(p.d) ? p.d : '', send: Object.keys(a).length > 0 }; // v0.20.1：答えがあれば、統計データとして送る
 }
+// 自分の本屋（v0.39.0）：名前・本屋か図書館か・看板（スタンプの柄・色・形）・場所（端末の中だけ）・開いた日・段・物語の行・店主の1冊・自分で足した本・看板の写真
+const COVER_RE = /^https:\/\/[^\s"'<>]{1,400}$/;
+function cleanBook(b, str) { return { id: str(b.id, 30), title: str(b.title, 80), author: str(b.author, 60), isbn: str(b.isbn, 13), cover: typeof b.cover === 'string' && COVER_RE.test(b.cover) ? b.cover : '', d: isDay(b.d) ? b.d : '', t: num(b.t) }; }
+function cleanShop(x, str) {
+  if (!x || typeof x !== 'object' || typeof x.name !== 'string' || !x.name.trim()) return null;
+  const ok = (y) => y && typeof y === 'object'; const int = (v, max) => (Number.isInteger(v) && v >= 0 && v <= max ? v : 0);
+  const sg = ok(x.sign) ? x.sign : {};
+  return { name: str(x.name, 20), kind: x.kind === 'l' ? 'l' : 'b', sign: { p: int(sg.p, 11), c: int(sg.c, 5), sh: int(sg.sh, 2) }, photo: typeof x.photo === 'string' && x.photo.length < 300000 && AVATAR_RE.test(x.photo) ? x.photo : '', at: isPt(x.at) ? x.at : null, t: num(x.t), d: isDay(x.d) ? x.d : '', lv: int(x.lv, 9),
+    log: (Array.isArray(x.log) ? x.log : []).filter((l) => ok(l) && ['open', 'up', 'move', 'pick'].includes(l.k) && isDay(l.d)).slice(-200).map((l) => ({ k: l.k, t: num(l.t), d: l.d, lv: int(l.lv, 9), n: str(l.n, 80) })),
+    pick: ok(x.pick) && typeof x.pick.title === 'string' && x.pick.title ? Object.assign(cleanBook(x.pick, str), { note: str(x.pick.note, 100) }) : null,
+    own: (Array.isArray(x.own) ? x.own : []).filter((b) => ok(b) && typeof b.title === 'string' && b.title && typeof b.id === 'string').slice(-500).map((b) => cleanBook(b, str)) }; // 貸した本は 11/26 にやめた（ぶっくまさん「いりません」）
+}
 function sanitize(o) {
   for (const k of ['visits', 'cards', 'wants', 'custom', 'posts', 'shares', 'reading', 'trips', 'reads', 'evTitles', 'outbox', 'repOut', 'actOut', 'meetOut', 'attrOut', 'reported']) if (!Array.isArray(o[k])) o[k] = [];
   for (const k of ['stamps', 'pgDay', 'claimedW', 'claimedD', 'rallyDone', 'featDone', 'looks', 'hidden', 'renames', 'days', 'evLog', 'picks', 'mapFix', 'mapAdd']) o[k] = plain(o[k]);
+  if (o.movedApp != null && !isDay(o.movedApp)) delete o.movedApp; if (o.wishBook != null && !isDay(o.wishBook)) delete o.wishBook; // アプリへ引っ越した日・本にする「ほしい」を押した日（11/27）
+  delete o.opened; // 「営業していた」を押した日（11/27 に作って、その日に外した。テストの端末に残った分を消す）
   for (const k of ['pg', 'seen', 'shareCount']) o[k] = num(o[k]);
   const ok = (x) => x && typeof x === 'object';
   o.visits = o.visits.filter((v) => ok(v) && isDay(v.d) && typeof v.s === 'string');
@@ -43,12 +57,15 @@ function sanitize(o) {
   o.trips = o.trips.filter((g) => ok(g) && isDay(g.d)).map((g) => Object.assign(g, { min: num(g.min), m: num(g.m) }));
   o.evTitles = o.evTitles.filter((x) => ok(x) && isDay(x.d));
   const str = (x, n) => (typeof x === 'string' ? x.slice(0, n) : ''); // まだ送れていない店の報告（v0.17.0）
-  o.repOut = o.repOut.filter((r) => ok(r) && ['closed', 'rename', 'add', 'moved'].includes(r.kind) && typeof r.store === 'string').slice(-50).map((r) => ({ kind: r.kind, store: str(r.store, 40), orig: str(r.orig, 80), name: str(r.name, 80), note: str(r.note, 200), lat: num(r.lat, null), lon: num(r.lon, null), place: str(r.place, 8), at: str(r.at, 40) }));
-  o.actOut = o.actOut.filter((x) => ok(x) && ['open', 'read', 'done', 'sato', 'tabi'].includes(x.k) && typeof x.id === 'string' && /^[a-z][0-9a-z-]{1,23}$/.test(x.id)).slice(-500).map((x) => ((x.k === 'tabi' && ['open', 'share'].includes(x.sub)) || (x.k === 'open' && ['app', 'web', 'home', 'pc'].includes(x.sub)) ? { k: x.k, id: x.id, at: str(x.at, 40), sub: x.sub } : { k: x.k, id: x.id, at: str(x.at, 40) })); // まだ送れていない読書と使い方の記録（v0.25.0）
+  o.repOut = o.repOut.filter((r) => ok(r) && ['closed', 'rename', 'add', 'moved', 'holiday', 'pause', 'type'].includes(r.kind) && typeof r.store === 'string').slice(-50).map((r) => ({ kind: r.kind, store: str(r.store, 40), orig: str(r.orig, 80), name: str(r.name, 80), note: str(r.note, 200), lat: num(r.lat, null), lon: num(r.lon, null), place: str(r.place, 8), at: str(r.at, 40) }));
+  const SUBS = { tabi: ['open', 'share'], open: ['app', 'web', 'home', 'pc', 'and', 'ios', 'webi', 'weba', 'homei', 'homea', 'appi', 'appa'], one: ['tap', 'shiori'], shop: ['open', 'read'], wish: ['book'] }; // wish：本にする機能が「ほしい」（11/27） // one・rcard・shop・diary は v0.39.0（回数だけ）
+  o.actOut = o.actOut.filter((x) => ok(x) && ['open', 'read', 'done', 'sato', 'tabi', 'one', 'rcard', 'shop', 'diary', 'wish'].includes(x.k) && typeof x.id === 'string' && /^[a-z][0-9a-z-]{1,23}$/.test(x.id)).slice(-500).map((x) => (SUBS[x.k] && SUBS[x.k].includes(x.sub) ? { k: x.k, id: x.id, at: str(x.at, 40), sub: x.sub } : { k: x.k, id: x.id, at: str(x.at, 40) })); // まだ送れていない読書と使い方の記録（v0.25.0）
   o.meetOut = o.meetOut.filter((x) => ok(x) && typeof x.store === 'string' && typeof x.isbn === 'string').slice(-200).map((x) => ({ store: str(x.store, 40), isbn: str(x.isbn, 13), at: str(x.at, 40) })); // 出会った本（v0.26.0・端末の番号なしで送る）
   o.attrOut = o.attrOut.filter((x) => ok(x) && /^97[89]\d{10}$/.test(x.isbn) && /^\d{4}-\d{2}$/.test(x.m)).slice(-200).map((x) => ({ isbn: x.isbn, m: x.m, gen: /^(10|20|30|40|50|60|70)$/.test(x.gen) ? x.gen : '', sex: /^[fmxn]$/.test(x.sex) ? x.sex : '', after: num(x.after) })); // 出会った本の世代・性別（v0.29.0・店と日なし）
   o.reported = o.reported.filter((r) => ok(r) && typeof r.k === 'string').slice(-300).map((r) => ({ k: str(r.k, 10), s: str(r.s, 40), la: num(r.la, null), lo: num(r.lo, null), d: isDay(r.d) ? r.d : '' })); // 送った報告（地図守り）
   for (const [k, v] of Object.entries(o.picks)) { if (!ok(v) || typeof v.title !== 'string') { delete o.picks[k]; continue; } o.picks[k] = { v: num(v.v), title: str(v.title, 80), author: str(v.author, 60), isbn: str(v.isbn, 13), who: str(v.who, 20), shelf: str(v.shelf, 40), hint: str(v.hint, 40), pics: num(v.pics), d: isDay(v.d) ? v.d : '' }; } // 開いた書店員さんの1冊（v0.26.0）
+  o.diary = plain(o.diary); for (const [k, v] of Object.entries(o.diary)) { if (!isDay(k) || !ok(v) || typeof v.s !== 'string' || !v.s.trim()) delete o.diary[k]; else o.diary[k] = { s: v.s.slice(0, DIARY_MAX), t: num(v.t) }; } // 日記（v0.39.0。日付ごと・端末の中だけ）
+  o.shop = cleanShop(o.shop, str); // 自分の本屋（v0.39.0）
   for (const [k, v] of Object.entries(o.stamps)) if (!ok(v) || !isDay(v.d)) delete o.stamps[k];
   for (const [k, v] of Object.entries(o.days)) if (!isDay(k) || !ok(v)) delete o.days[k]; else { v.m = num(v.m); v.v = num(v.v); }
   for (const [k, v] of Object.entries(o.pgDay)) if (!isDay(k)) delete o.pgDay[k]; else o.pgDay[k] = num(v);
@@ -67,7 +84,9 @@ function sanitize(o) {
   if (s.openDay != null && !isDay(s.openDay)) delete s.openDay; // その日に開いたことを送った日（v0.25.0）
   if (s.moveId != null && !(typeof s.moveId === 'string' && /^[0-9a-f]{64}$/.test(s.moveId))) delete s.moveId; // 引き継ぎコードで移したか（v0.28.0）
   for (const k of ['moveAt', 'moved', 'homeAsk', 'dayN']) if (s[k] != null && !(typeof s[k] === 'number' && Number.isFinite(s[k]))) delete s[k];
-  for (const k of ['dayLast', 'pfLater']) if (s[k] != null && !isDay(s[k])) delete s[k]; // 開いた日を数える・9つの質問を「あとで」にした日（v0.33.0。端末の中だけ）
+  for (const k of ['dayLast', 'pfLater', 'oneLater', 'dyDay', 'rcDay']) if (s[k] != null && !isDay(s[k])) delete s[k]; // dyDay・rcDay：日記を書いた日・読書カードを開いた日を送った日（v0.39.0。1日1回）
+  for (const k of ['oneNudge', 'shopAsk']) if (s[k] != null && s[k] !== 1) delete s[k]; // 1分読むの「あとで」のお知らせ・開店しませんか（v0.39.0）
+  if (s.rcNote != null && !(typeof s.rcNote === 'string' && /^\d{4}-\d{2}$/.test(s.rcNote))) delete s.rcNote; // 読書カードの「先月のカード」のお知らせ（v0.39.0） // 開いた日を数える・9つの質問を「あとで」にした日（v0.33.0。端末の中だけ）
   if (s.movedStay != null && s.movedStay !== 1) delete s.movedStay;
   if (s.meetAttr != null && typeof s.meetAttr !== 'boolean') delete s.meetAttr; // 出会った本に世代と性別を添える（v0.29.0。はじめはオン）
   s.joinCode = typeof s.joinCode === 'string' && /^[a-z0-9_-]{2,40}$/.test(s.joinCode) ? s.joinCode : '';
@@ -104,5 +123,5 @@ export const save = debounce(write, 150);
 export const saveNow = write;
 export function replace(data) { S = ensure(data); saveNow(); emit('replaced'); return S; }
 export function reset() { const seen = S.seen, settings = S.settings, sent = !!(S.profile && S.profile.send); S = empty(); S.seen = seen; S.settings = settings; if (sent) S.profOut = { op: 'del' }; /* 運営に送ったプロフィールも消す（v0.20.0。端末の番号は同じまま） */ try { localStorage.removeItem('meguri_events_v1'); localStorage.removeItem('meguri_api'); } catch (e) {} saveNow(); emit('replaced'); return S; } // イベントの控え・試しの受け口も消す（v0.15.3）
-export function exportJSON() { return JSON.stringify({ app: 'honya-map', ver: APP_VER, at: new Date().toISOString(), data: S }, null, 1); }
+export function exportJSON() { return JSON.stringify({ app: 'honya-map', ver: APP_VER, at: new Date().toISOString(), from: NATIVE ? 'app' : 'web', data: S }, null, 1); } // from：どこから書き出したか（11/27。アプリへの引っ越しのお礼のため）
 export function parseImport(text) { const j = JSON.parse(text); const d = j.data || j; if (!d || !Array.isArray(d.visits)) throw new Error('bad'); return d; }

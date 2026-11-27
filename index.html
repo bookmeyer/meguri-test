@@ -28,7 +28,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+P+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous">
-<link rel="stylesheet" href="css/app.css?v=0.37.9">
+<link rel="stylesheet" href="css/app.css?v=0.39.0">
 </head>
 <body>
 <div id="test-band" style="position:fixed;left:0;right:0;top:0;z-index:9999;background:#C1121F;color:#fff;font:700 11px/1.7 sans-serif;text-align:center;pointer-events:none;padding-top:env(safe-area-inset-top)">テスト版（本番ではありません・記録はテスト用のサーバーへ）</div>
@@ -74,7 +74,7 @@
     <div id="search-box" hidden><svg class="ic sicon"><use href="#i-search"></use></svg><input id="search" type="search" placeholder="店の名前や住所でさがす" autocomplete="off" aria-label="店をさがす"><div id="search-results" class="dropdown" hidden></div></div>
     <div class="map-ctl">
       <button id="btn-search" class="fab" title="店をさがす" aria-label="店をさがす" aria-expanded="false"><svg class="ic"><use href="#i-search"></use></svg></button>
-      <button id="btn-add" class="fab" title="地図にない本屋を知らせる" aria-label="地図にない本屋を知らせる"><svg class="ic"><use href="#i-add"></use></svg></button>
+      <button id="btn-add" class="fab fab-label" title="地図にない本屋を知らせる" aria-label="地図にない本屋を知らせる"><svg class="ic"><use href="#i-add"></use></svg><span>本屋を知らせる</span></button>
       <button id="btn-trial" class="fab" title="お試し歩き" aria-label="お試し歩き" hidden><svg class="ic"><use href="#i-foot"></use></svg></button>
       <button id="btn-warp" class="fab" title="本屋の近くへワープ" aria-label="本屋の近くへワープ" hidden><svg class="ic"><use href="#i-warp"></use></svg></button>
     </div>
@@ -96,6 +96,7 @@
       <div id="radar-legend" class="legend"></div>
       <div id="radar-status" class="status-card"></div>
       <div id="radar-list" class="list"></div>
+      <div id="radar-add"></div><!-- 地図にない本屋を知らせる（11/27） -->
       <div id="radar-wants"></div>
       <!-- 参加店・書店員さんの1冊・いまのフェアは、近くの店の一覧の下に（遠い人には近くの店が先・v0.32.7） -->
       <div id="radar-part"></div>
@@ -108,11 +109,12 @@
     <div class="pane">
       <div class="profile" id="profile"></div>
       <div class="segmented" role="tablist">
-        <button data-sub="log" role="tab">物語</button><button data-sub="stamps" class="active" role="tab">スタンプ</button><button data-sub="cards" role="tab">本</button><button data-sub="month" role="tab">月</button><button data-sub="prefs" role="tab">県</button>
+        <button data-sub="shop" role="tab" class="seg-wide">自分の本屋</button><button data-sub="log" role="tab">物語</button><button data-sub="stamps" class="active" role="tab">スタンプ</button><button data-sub="cards" role="tab">本</button><!-- 11/27：自分の本屋を先頭に（ぶっくまさん「めだまな機能なので」） --><button data-sub="month" role="tab">月</button><button data-sub="prefs" role="tab">県</button>
       </div>
       <div id="sub-stamps" class="sub active"><div id="stamp-grid" class="stamp-grid"></div></div>
       <div id="sub-cards" class="sub"><div id="reading"></div><p class="hint">「この店で、この本と出会った」の記録。読んだかどうかは問いません。</p><div id="card-grid" class="card-grid"></div></div>
       <div id="sub-log" class="sub"><div id="story-today"></div><h3>前の章</h3><div id="chapters"></div><h3>○年前の今日</h3><div id="anniv" class="status-card"></div><h3>行った店</h3><div id="visit-list" class="list"></div></div>
+      <div id="sub-shop" class="sub"><div id="myshop" class="myshop"></div></div>
       <div id="sub-month" class="sub"><div id="month"></div></div>
       <div id="sub-prefs" class="sub"><p class="hint">スタンプを押した県が塗られます（住所の情報がない店は近い県に寄せた目安）。</p><div id="prefs" class="prefs"></div></div>
     </div>
@@ -154,6 +156,6 @@
 <div id="toasts" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
-<script type="module" src="js/main.js?v=0.37.9"></script>
+<script type="module" src="js/main.js?v=0.39.0"></script>
 </body>
 </html>

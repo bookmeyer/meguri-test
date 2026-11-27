@@ -4,10 +4,10 @@
 // 店の情報の報告を送り、運営が直した閉店・名前を受け取る（v0.17.0）
 // 読書と使い方の記録（v0.25.0）：読書の日時・長さ・読んだ場所の種類・移動読書の距離など。本の名前・位置は送らない（queueAct）
 // サーバーに届かないときは、前回読んだ設定で動く。スタンプはいつでも押せる
-import { EVENTS_API, APP_VER, ACT_SINCE, MEET_SINCE, ATTR_SINCE, VIA_SINCE } from './config.js?v=0.37.9';
-import { $, emit, prefOf, todayISO, on, openedVia } from './util.js?v=0.37.9';
-import { S, save } from './state.js?v=0.37.9';
-import { isLib, setFixes } from './data.js?v=0.37.9';
+import { EVENTS_API, APP_VER, ACT_SINCE, MEET_SINCE, ATTR_SINCE, VIA_SINCE, COUNT_SINCE } from './config.js?v=0.39.0';
+import { $, emit, prefOf, todayISO, on, openedVia, openedViaOS } from './util.js?v=0.39.0';
+import { S, save } from './state.js?v=0.39.0';
+import { isLib, setFixes } from './data.js?v=0.39.0';
 
 export const EV = { list: [], permitted: new Set(), cards: new Set(), ok: false, at: 0 };
 const CACHE_KEY = 'meguri_events_v1';
@@ -44,17 +44,21 @@ function applyFixes(f) {
   // 場所を直した店（v0.36.6・サーバー 1.13.0）：{ 店番号: [緯度, 経度] }
   const move = new Map();
   if (ok && f.move && typeof f.move === 'object' && !Array.isArray(f.move)) for (const [k, v] of Object.entries(f.move)) if (STORE_ID.test(k) && Array.isArray(v) && inJP(v[0], v[1]) && move.size < 5000) move.set(k, [+v[0].toFixed(5), +v[1].toFixed(5)]);
-  if (setFixes(closed, rename, adds, hide, move)) emit('fixes');
-  creditReports(closed, rename, hide, adds, move);
+  // 休業中の印（{ 店番号: "2026-11" }）・店の種類（{ 店番号: book・used・both・lib・none }。none＝本屋ではない は地図から外す）（11/27・サーバー 1.16.0）
+  const pause = new Map(), type = new Map(), typeAll = new Map();
+  if (ok && f.pause && typeof f.pause === 'object' && !Array.isArray(f.pause)) for (const [k, v] of Object.entries(f.pause)) if (STORE_ID.test(k) && typeof v === 'string' && pause.size < 5000) pause.set(k, /^\d{4}-\d{2}$/.test(v) ? v : 1);
+  if (ok && f.type && typeof f.type === 'object' && !Array.isArray(f.type)) for (const [k, v] of Object.entries(f.type)) if (STORE_ID.test(k) && ['book', 'used', 'both', 'lib', 'none'].includes(v) && typeAll.size < 5000) { typeAll.set(k, v); if (v === 'none') hide.push(k); else type.set(k, v); }
+  if (setFixes(closed, rename, adds, hide, move, pause, type)) emit('fixes');
+  creditReports(closed, rename, hide, adds, move, pause, typeAll);
 }
 // ---- 地図守り・開拓者（v0.26.0。ぶっくまさん 11/19「むしろみんなで作り上げたい」）：自分の報告が、みんなの地図の直しになったら ----
 // この端末が送った報告（S.reported）と、運営が直したもの（fixes）を照らし合わせる。1つにつき1回だけ、ページのおまけ
-function creditReports(closed, rename, hide, adds, move = new Map()) {
+function creditReports(closed, rename, hide, adds, move = new Map(), pause = new Map(), type = new Map()) {
   const rep = Array.isArray(S.reported) ? S.reported : []; if (!rep.length) return;
   S.mapFix = S.mapFix || {}; S.mapAdd = S.mapAdd || {}; let fix = 0, add = 0;
   const cl = new Set([...closed, ...hide]);
   for (const r of rep) {
-    if ((r.k === 'closed' && cl.has(r.s)) || (r.k === 'rename' && rename.has(r.s)) || (r.k === 'moved' && move.has(r.s))) { if (!S.mapFix[r.s]) { S.mapFix[r.s] = todayISO(); fix++; } }
+    if ((r.k === 'closed' && cl.has(r.s)) || (r.k === 'rename' && rename.has(r.s)) || (r.k === 'moved' && move.has(r.s)) || (r.k === 'pause' && pause.has(r.s)) || (r.k === 'type' && type.has(r.s))) { if (!S.mapFix[r.s]) { S.mapFix[r.s] = todayISO(); fix++; } }
     if (r.k === 'add' && typeof r.la === 'number') { const a = adds.find((x) => Math.abs(x.la - r.la) < 0.0015 && Math.abs(x.lo - r.lo) < 0.0018); if (a && !S.mapAdd[a.i]) { S.mapAdd[a.i] = todayISO(); add++; } }
   }
   if (fix || add) { save(); emit('map-credit', { fix, add }); }
@@ -214,7 +218,7 @@ async function sendProfile() {
 // 送るのは、店の番号・報告の種類・名前・ひとこと・（地図にない店だけ）その店の場所と、ランダムな番号。自分の位置は送らない
 export function queueReport(r) {
   S.repOut = S.repOut || []; S.repOut.push(Object.assign({ at: new Date().toISOString() }, r));
-  S.reported = S.reported || []; S.reported.push({ k: r.kind, s: r.store || '', la: typeof r.lat === 'number' ? r.lat : null, lo: typeof r.lon === 'number' ? r.lon : null, d: todayISO() }); if (S.reported.length > 300) S.reported.splice(0, S.reported.length - 300); // 地図守り（v0.26.0）
+  S.reported = S.reported || []; if (r.kind !== 'holiday') S.reported.push({ k: r.kind, s: r.store || '', la: typeof r.lat === 'number' ? r.lat : null, lo: typeof r.lon === 'number' ? r.lon : null, d: todayISO() }); if (S.reported.length > 300) S.reported.splice(0, S.reported.length - 300); // 地図守り（v0.26.0）
   if (S.repOut.length > 50) S.repOut.splice(0, S.repOut.length - 50);
   save(); flushSoon(500);
 }
@@ -229,8 +233,11 @@ export function queueAct(it) {
   if (S.actOut.length > ACT_MAX) S.actOut.splice(0, S.actOut.length - ACT_MAX);
   save(); flushSoon(3000);
 }
+// 回数だけの記録（v0.39.0・サーバー 1.15.0。11/26 ぶっくまさん「どれが効いたかを見るため」）：1分読む（tap＝押した／shiori＝しおりまで）・読書カードを開いた（rcard・1日1回）・
+// 開店した／自分の本屋で読んだ（shop・open／read）・日記を書いた（diary・1日1回）。日記の文・本の名前・店の名前・場所は送らない。ポリシー 2026-11-26 に同意した人だけ
+export function countAct(k, id, sub = '') { if (String(S.settings.policy || '') < COUNT_SINCE) return; queueAct(sub ? { k, id, sub } : { k, id }); }
 // その日に開いた（1日1回）。使っている人の数を出すため。中身はない
-export function noteOpen() { if (!actOk()) return; const d = todayISO(); if (S.settings.openDay === d) return; S.settings.openDay = d; queueAct(String(S.settings.policy || '') >= VIA_SINCE ? { k: 'open', id: 'o' + d, sub: openedVia() } : { k: 'open', id: 'o' + d }); } // どこで開いたか（v0.33.0・サーバー 1.9.8 から残す。前のサーバーは読み捨てる）
+export function noteOpen() { if (!actOk()) return; const d = todayISO(); if (S.settings.openDay === d) return; S.settings.openDay = d; const pv = String(S.settings.policy || ''); queueAct(pv >= VIA_SINCE ? { k: 'open', id: 'o' + d, sub: pv >= COUNT_SINCE ? openedViaOS() : openedVia() } : { k: 'open', id: 'o' + d }); } // スマホの種類（iPhone・Android）は、ポリシー 2026-11-26 に同意した人だけ（v0.39.0・サーバー 1.15.0） // どこで開いたか（v0.33.0・サーバー 1.9.8 から残す。前のサーバーは読み捨てる）
 // 読書は、送るときに記録から作る（しおりをはさんだ所の位置が押したあとに届いて、読んだ場所の種類が決まることがあるため。reading.js の p1wait）
 const actWaiting = (x) => x.k === 'read' && (S.reads || []).some((r) => r.id === x.id && r.p1wait && Date.now() - r.t1 < 180000);
 // 待っていない分だけ送る。送れた分を消す（送っているあいだに足された記録は残す）

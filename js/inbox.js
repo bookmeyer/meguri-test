@@ -38,6 +38,7 @@ export function envText() {
   const os = /iPhone/.test(u) ? 'iPhone' : /iPad|Macintosh.*Mobile/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints > 1) ? 'iPad' : /Android/.test(u) ? 'Android' : /Windows/.test(u) ? 'Windows' : /Mac OS X/.test(u) ? 'Mac' : 'そのほか';
   const br = /Line\//i.test(u) ? 'LINEの中' : /Instagram/i.test(u) ? 'Instagramの中' : /FBAN|FBAV/.test(u) ? 'Facebookの中' : /\bX\/|Twitter/i.test(u) ? 'Xの中' : /EdgA?\//.test(u) ? 'Edge' : /CriOS|Chrome\//.test(u) ? 'Chrome' : /FxiOS|Firefox\//.test(u) ? 'Firefox' : /Safari\//.test(u) ? 'Safari' : 'そのほか';
   const pwa = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone ? '・ホーム画面' : '';
+  if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) return `${os}・アプリ`; // アプリ版（11/25〜）：中の画面はブラウザの名前に見えるので、アプリと書く
   return `${os}・${br}${pwa}`;
 }
 

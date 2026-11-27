@@ -1,0 +1,52 @@
+// 自分の本屋の絵（v0.39.0）：段ごとのお店の絵（本屋6段・図書館4段）。地図のピンにも同じ絵を使う（お店が育つとピンも育つ）
+// ひと箱（1〜4冊）のあいだは、1冊増えるごとに箱の中の本が1冊ずつ増える（④）。2階建ての2階「読書のへや」は明かりの数（0〜4）
+import { esc } from './util.js?v=0.39.0';
+
+const E = '#1B1B1B', WALL = '#FFF3D6', WOOD = '#F2B57A', GLASS = '#DDEEFF', LEAF = '#4FC07A', LIT = '#FFD447', DARK = '#5B6B85';
+const BOOKC = ['#FF6A48', '#2F9BFF', '#4FC07A', '#FFD447', '#A86CFF', '#FF7AB6'];
+const name = (s, x, y, w, size = 11, fill = E) => `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-size="${size}" font-family="'Mochiy Pop P One','Zen Maru Gothic',sans-serif" fill="${fill}"${s.length * size > w ? ` textLength="${w}" lengthAdjust="spacingAndGlyphs"` : ''}>${esc(s)}</text>`;
+const plate = (s, x, y, w, h, bg, fg) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2.6}" fill="${bg}" stroke="${E}" stroke-width="2"/>${name(s, x + w / 2, y + h / 2 + 0.5, w - 10, Math.min(11, h - 5), fg)}`;
+const ground = '<ellipse cx="120" cy="139" rx="96" ry="5" fill="#F3DDBB"/><path d="M18 137h204" stroke="' + E + '" stroke-width="2.5" stroke-linecap="round"/>';
+// 本棚の段：x,y から幅 w に、背の高さを少しずつ変えた本を並べる
+function shelf(x, y, w, h, seed = 0, cols = BOOKC) { let s = '', cx = x, i = seed; while (cx + 5 < x + w) { const bw = 4 + ((i * 7) % 3), bh = h - ((i * 5) % 4); s += `<rect x="${cx}" y="${y + h - bh}" width="${bw}" height="${bh}" fill="${cols[i % cols.length]}" stroke="${E}" stroke-width=".8"/>`; cx += bw + 0.6; i++; } return s; }
+const plant = (x) => `<path d="M${x - 8} 122h16l-2 15h-12z" fill="#E7895C" stroke="${E}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="${x - 4}" cy="114" rx="5" ry="9" fill="${LEAF}" stroke="${E}" stroke-width="2" transform="rotate(-20 ${x - 4} 114)"/><ellipse cx="${x + 5}" cy="113" rx="5" ry="9" fill="${LEAF}" stroke="${E}" stroke-width="2" transform="rotate(20 ${x + 5} 113)"/>`;
+const spark = (x, y, s = 1) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0-8 2-2 8 0 2 2 0 8-2 2-8 0-2-2z" fill="${LIT}" stroke="${E}" stroke-width="1.4" stroke-linejoin="round"/>`;
+const stripes = (x, y, w, h, n, a, b) => { let s = ''; const sw = w / n; for (let i = 0; i < n; i++) s += `<rect x="${x + i * sw}" y="${y}" width="${sw}" height="${h}" fill="${i % 2 ? b : a}"/>`; return s + `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${E}" stroke-width="2"/>`; };
+const win = (x, y, w, h, lit) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="${lit ? LIT : DARK}" stroke="${E}" stroke-width="2"/><path d="M${x + w / 2} ${y}v${h}" stroke="${E}" stroke-width="1.2"/>`;
+const door = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${WOOD}" stroke="${E}" stroke-width="2"/><rect x="${x + 4}" y="${y + 5}" width="${w - 8}" height="${h * 0.32}" rx="2" fill="${GLASS}" stroke="${E}" stroke-width="1.4"/><circle cx="${x + w - 5}" cy="${y + h * 0.6}" r="1.6" fill="${E}"/>`;
+const board = (s, x) => `<path d="M${x} 90v47" stroke="${E}" stroke-width="2.5"/><rect x="${x - 34}" y="66" width="68" height="24" rx="6" fill="#FFFFFF" stroke="${E}" stroke-width="2"/>${name(s, x, 78.5, 58, 11)}`;
+
+// opts：{ n: 本屋で出会った本の数, books: ひと箱の本の色, lights: 読書のへやの明かり 0〜4 }
+export function shopArt(shop, stage, opts = {}) {
+  const main = opts.main || '#FF6A48', nm = shop.name || '';
+  const books = (opts.books && opts.books.length ? opts.books : BOOKC); const lights = opts.lights || 0;
+  let body = '';
+  if (shop.kind === 'l') {
+    if (stage <= 1) { // 本箱
+      body = `<rect x="78" y="62" width="70" height="75" rx="3" fill="${WOOD}" stroke="${E}" stroke-width="2.5"/><rect x="84" y="68" width="58" height="63" fill="#FBE7C6" stroke="${E}" stroke-width="1.5"/>${[68, 89, 110].map((y, k) => shelf(85, y + 1, 56, 19, k * 3, books) + `<path d="M84 ${y + 21}h58" stroke="${E}" stroke-width="2"/>`).join('')}${board(nm, 192)}${plant(48)}${spark(66, 52)}${spark(160, 48, 0.8)}`;
+    } else if (stage === 2) { // 小さな文庫
+      body = `<rect x="74" y="76" width="92" height="61" fill="${WALL}" stroke="${E}" stroke-width="2.5"/><path d="M64 78 120 42l56 36z" fill="${main}" stroke="${E}" stroke-width="2.5" stroke-linejoin="round"/>${plate(nm, 92, 60, 56, 15, '#FFFFFF', E)}<rect x="82" y="86" width="44" height="40" fill="${GLASS}" stroke="${E}" stroke-width="2"/>${shelf(84, 88, 40, 17, 1, books)}${shelf(84, 107, 40, 17, 4, books)}${door(134, 96, 24, 41)}${plant(190)}`;
+    } else { // 町の図書館・書庫のある図書館
+      const big = stage >= 4; const ox = big ? -20 : 0;
+      body = `<g transform="translate(${ox} 0)"><rect x="48" y="128" width="144" height="9" fill="#E8DCC6" stroke="${E}" stroke-width="2"/><rect x="56" y="62" width="128" height="66" fill="${WALL}" stroke="${E}" stroke-width="2.5"/><path d="M46 62 120 30l74 32z" fill="${main}" stroke="${E}" stroke-width="2.5" stroke-linejoin="round"/>${plate(nm, 84, 44, 72, 15, '#FFFFFF', E)}${[64, 88, 140, 164].map((x) => `<rect x="${x}" y="68" width="10" height="58" fill="#FFFFFF" stroke="${E}" stroke-width="2"/>`).join('')}${door(106, 86, 28, 42)}</g>`
+        + (big ? `<rect x="176" y="34" width="44" height="103" fill="#E9E2F5" stroke="${E}" stroke-width="2.5"/><path d="M172 36h52l-6-10h-40z" fill="${main}" stroke="${E}" stroke-width="2.5" stroke-linejoin="round"/>${[46, 70, 94].map((y) => `<rect x="186" y="${y}" width="24" height="16" fill="#FBE7C6" stroke="${E}" stroke-width="1.6"/>${shelf(187, y + 1, 22, 14, y, books)}`).join('')}${name('書庫', 198, 124, 30, 10)}` : plant(204));
+    }
+  } else if (stage <= 1) { // ひと箱の本屋：本が1冊ずつ増える
+    const n = Math.max(1, Math.min(4, opts.n || 1)); const H = [36, 28, 44, 32];
+    let bk = ''; for (let i = 0; i < n; i++) bk += `<rect x="${92 + i * 15}" y="${100 - H[i]}" width="13" height="${H[i] + 6}" rx="1.5" fill="${books[i % books.length]}" stroke="${E}" stroke-width="2"/>`;
+    body = `${bk}<path d="M78 100h86l-8 37H86z" fill="${WOOD}" stroke="${E}" stroke-width="2.5" stroke-linejoin="round"/><path d="M84 112h74" stroke="${E}" stroke-width="1.2" opacity=".5"/>${board(nm, 196)}${plant(48)}${spark(76, 54)}${spark(160, 62, 0.85)}`;
+  } else if (stage === 2) { // 小さな本屋
+    body = `<rect x="68" y="72" width="104" height="65" fill="${WALL}" stroke="${E}" stroke-width="2.5"/><path d="M58 74h124l-12-22H70z" fill="${main}" stroke="${E}" stroke-width="2.5" stroke-linejoin="round"/>${plate(nm, 88, 34, 64, 17, main, '#FFFFFF')}<rect x="78" y="82" width="50" height="44" fill="${GLASS}" stroke="${E}" stroke-width="2"/>${shelf(80, 84, 46, 19, 2, books)}${shelf(80, 105, 46, 19, 5, books)}${door(138, 92, 24, 45)}${plant(196)}`;
+  } else if (stage === 3) { // 町の本屋：壁一面の棚と、店先の平台
+    body = `<rect x="48" y="60" width="144" height="77" fill="${WALL}" stroke="${E}" stroke-width="2.5"/>${stripes(42, 54, 156, 14, 12, main, '#FFFFFF')}${[...Array(12)].map((_, i) => `<circle cx="${48.5 + i * 13}" cy="68" r="6.5" fill="${i % 2 ? '#FFFFFF' : main}" stroke="${E}" stroke-width="1.6"/>`).join('')}${plate(nm, 76, 30, 88, 20, main, '#FFFFFF')}<rect x="58" y="78" width="80" height="44" fill="${GLASS}" stroke="${E}" stroke-width="2"/>${shelf(60, 80, 76, 20, 1, books)}${shelf(60, 101, 76, 20, 6, books)}<rect x="56" y="124" width="84" height="6" fill="${WOOD}" stroke="${E}" stroke-width="1.6"/>${door(150, 84, 30, 53)}<rect x="153" y="118" width="24" height="8" rx="2" fill="#FFFFFF" stroke="${E}" stroke-width="1"/>${name('営業中', 165, 122, 20, 6)}${plant(206)}`;
+  } else if (stage === 4) { // 2階建ての本屋：2階は「読書のへや」
+    body = `<rect x="62" y="48" width="116" height="89" fill="${WALL}" stroke="${E}" stroke-width="2.5"/><path d="M52 50h136l-12-16H64z" fill="${main}" stroke="${E}" stroke-width="2.5" stroke-linejoin="round"/>${plate(nm, 84, 18, 72, 18, main, '#FFFFFF')}${[72, 96, 126, 150].map((x, k) => win(x, 56, 18, 22, k < lights)).join('')}${name('2F 読書のへや', 120, 86, 70, 7.5)}${stripes(62, 92, 116, 8, 14, main, '#FFFFFF')}<rect x="70" y="104" width="62" height="30" fill="${GLASS}" stroke="${E}" stroke-width="2"/>${shelf(72, 106, 58, 13, 3, books)}${shelf(72, 120, 58, 13, 7, books)}${door(142, 104, 26, 33)}<rect x="40" y="58" width="14" height="60" fill="${main}" stroke="${E}" stroke-width="2"/>${name('本めぐり', 47, 88, 52, 8, '#FFFFFF').replace('<text ', '<text writing-mode="tb" ')}<path d="M47 58v79" stroke="${E}" stroke-width="2"/>${plant(198)}${spark(36, 40, 0.8)}${spark(196, 44, 0.8)}`;
+  } else if (stage === 5) { // 大きな本屋
+    body = `<rect x="34" y="30" width="172" height="107" fill="${WALL}" stroke="${E}" stroke-width="2.5"/><rect x="34" y="30" width="172" height="22" fill="${main}" stroke="${E}" stroke-width="2.5"/>${name(nm, 120, 41.5, 150, 13, '#FFFFFF')}${[58, 80].map((y) => [44, 76, 108, 140, 172].map((x) => win(x, y, 22, 16, (x + y) % 3 !== 0)).join('')).join('')}<rect x="44" y="102" width="112" height="35" fill="${GLASS}" stroke="${E}" stroke-width="2"/>${shelf(46, 104, 108, 15, 2, books)}${shelf(46, 120, 108, 15, 8, books)}${door(164, 102, 32, 35)}`;
+  } else { // 本の街
+    body = `<rect x="18" y="66" width="58" height="71" fill="#FFE1D8" stroke="${E}" stroke-width="2.5"/><path d="M14 68h66l-8-12H22z" fill="${books[1 % books.length]}" stroke="${E}" stroke-width="2"/>${[26, 50].map((x) => win(x, 76, 18, 16, true)).join('')}<rect x="26" y="100" width="42" height="30" fill="${GLASS}" stroke="${E}" stroke-width="2"/>${shelf(28, 102, 38, 13, 1, books)}${shelf(28, 116, 38, 13, 4, books)}`
+      + `<rect x="84" y="22" width="72" height="115" fill="${WALL}" stroke="${E}" stroke-width="2.5"/><rect x="84" y="22" width="72" height="20" fill="${main}" stroke="${E}" stroke-width="2.5"/>${name(nm, 120, 32.5, 62, 11, '#FFFFFF')}${[50, 72].map((y) => [92, 122].map((x) => win(x, y, 26, 14, true)).join('')).join('')}<rect x="92" y="96" width="56" height="26" fill="${GLASS}" stroke="${E}" stroke-width="2"/>${shelf(94, 98, 52, 11, 2, books)}${shelf(94, 110, 52, 11, 6, books)}${door(108, 124, 24, 13)}`
+      + `<rect x="164" y="50" width="58" height="87" fill="#DDF5E5" stroke="${E}" stroke-width="2.5"/><path d="M160 52h66l-8-12h-50z" fill="${books[2 % books.length]}" stroke="${E}" stroke-width="2"/>${[60, 82].map((y) => win(172, y, 42, 14, true)).join('')}<rect x="172" y="104" width="42" height="26" fill="${GLASS}" stroke="${E}" stroke-width="2"/>${shelf(174, 106, 38, 11, 3, books)}${shelf(174, 118, 38, 11, 9, books)}${spark(120, 10, 0.8)}`;
+  }
+  return `<svg class="shop-art" viewBox="0 0 240 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(nm)}の絵">${ground}${body}</svg>`;
+}

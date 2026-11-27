@@ -1,13 +1,13 @@
 // 読書：いま読んでいる本・読書の時間（「ここから読む」〜「しおりをはさむ」）・どこで読んだか・前回の本・1冊の旅・本の里帰り。画面は reading_ui.js
 // v0.24.0：ボタンの名前を「読書をはじめる」→「ここから読む」、「おわる」→「しおりをはさむ」に。1km以上動いて読んだ記録の名前は「移動読書」（ぶっくまさん 11/18）
 // 中の名前は v0.14 の「移動読書」のなごり：S.trip＝いま計っている読書／S.reads＝おわった読書／S.trips の read=1＝v0.14.0〜0.14.3 の読書の記録（allReads でいっしょに数える）
-import { READ } from './config.js?v=0.37.9';
-import { emit, todayISO, dist, fmtDist, on, fmtDate, fmtMin } from './util.js?v=0.37.9';
-import { S, save } from './state.js?v=0.37.9';
-import { POS } from './position.js?v=0.37.9';
-import { STORES, BYID } from './data.js?v=0.37.9';
-import * as G from './game.js?v=0.37.9';
-import { queueAct } from './events.js?v=0.37.9';
+import { READ } from './config.js?v=0.39.0';
+import { emit, todayISO, dist, fmtDist, on, fmtDate, fmtMin, APPX } from './util.js?v=0.39.0';
+import { S, save } from './state.js?v=0.39.0';
+import { POS } from './position.js?v=0.39.0';
+import { STORES, BYID } from './data.js?v=0.39.0';
+import * as G from './game.js?v=0.39.0';
+import { queueAct, countAct } from './events.js?v=0.39.0';
 
 // 読書を取り消す（「読んでいなかった」）。v0.14.3 までの記録（店と店のあいだに入れていた分）にも使える
 export function undoRead(id) {
@@ -88,12 +88,20 @@ export function satoAt(storeId) {
 }
 export const satoCount = () => (S.reading || []).filter((b) => b.sato).length;
 // ここから読む（地図のボタンから、どこでも。本も読みかたも選ばない）。出発した店＝今日さいごにスタンプを押した店（2時間以内）。同じ店でもう一度押しても終わらないため
-export function startTrip(bookId = '') {
+// v0.39.0：one＝はじめての日の「1分だけ読む」から（物語の第1章の最初の行になる）／mine＝自分の本屋の「○○書店で読む」から。自分の本屋の場所（100m）で押したときも mine
+export function startTrip(bookId = '', { one = 0, mine = 0 } = {}) {
   const today = todayISO(); let from = '', fn = '';
   const lv = G.lastNearVisitToday(); if (lv && Date.now() - lv.t < 2 * 3600 * 1000) { from = lv.s; fn = (BYID.get(lv.s) || lv).n || ''; }
   if (bookId) S.lastBook = bookId;
-  S.trip = { from, fn, d: today, t: Date.now(), book: bookId || lastBook(), p0: herePos() }; save(); emit('trip');
+  const t = Date.now(); const p0 = herePos();
+  S.trip = { from, fn, d: today, t, book: bookId || lastBook(), p0 };
+  if (one) { S.trip.one = 1; countAct('one', 'n' + t, 'tap'); } // 「1分読む」を押した（回数だけ）
+  if (APPX && S.shop && (mine || nearMine(p0))) S.trip.mine = 1; // 自分の本屋はアプリ版だけ
+  save(); emit('trip');
 }
+// 自分の本屋のそば（100m）か（v0.39.0）。自分の本屋の場所は端末の中だけ。「どこで読んだか」を止めている人は、場所では決めない（ボタンから読んだときだけ）
+const nearMine = (p) => !!(p && S.shop && S.shop.at && dist(p[0], p[1], S.shop.at[0], S.shop.at[1]) <= PLACE.nearM);
+export const atMyShop = () => APPX && nearMine(herePos(60000));
 // 読書中に、読んでいる本をえらぶ（えらばなくてよい）
 export function setTripBook(id) { const tr = activeTrip(); if (!tr) return; tr.book = id || ''; S.lastBook = id || ''; save(); emit('trip'); }
 // 前回の本（v0.15.1 ぶっくまさん「毎回選ぶのではなく、前回の本を覚えておいて」）：前の読書で読んでいた本で、そのままはじめる。外した本・読み終えた本は使わない
@@ -112,6 +120,9 @@ export function endTrip(at = Date.now(), auto = false, endPos = null, chosen = f
   const r = { id: 'r' + at, d: todayISO(new Date(tr.t)), t0: tr.t, t1: at, min, pg: Math.min(READ.maxPg, Math.round(min * READ.pgPerMin)), book: bk ? bk.id : '', title: bk ? bk.title : '', from: tr.from || '', fn: tr.fn || '', auto: auto ? 1 : 0 };
   if (chosen) r.late = 1; // あとから長さを選んだ記録
   if (placeOn()) { r.p0 = tr.p0 || null; if (endPos === false) { r.p1 = null; r.pl = null; } else { r.p1 = endPos || herePos(60000); r.pl = placeOf(r.p0, r.p1); if (!r.p1) r.p1wait = 1; } } // どこで読んだか（v0.15.0）
+  // 自分の本屋で読んだ（v0.39.0）：ボタンから読んだか、はじめかおわりが自分の本屋のそば。移動読書（1km以上）は入れない
+  if (APPX && S.shop && !(r.pl && r.pl.k === 'move') && (tr.mine || nearMine(r.p0) || nearMine(r.p1))) { r.mine = 1; countAct('shop', 'm' + at, 'read'); }
+  if (tr.one) { r.one = 1; countAct('one', 'q' + at, 'shiori'); } // 「1分読む」から、しおりまで行った（回数だけ）
   S.reads = S.reads || []; S.reads.push(r); if (S.reads.length > 1000) S.reads.splice(0, S.reads.length - 1000);
   queueAct({ k: 'read', id: r.id }); // 管理画面の「読書」へ（v0.25.0。中身は送るときに記録から作る。本の名前・位置は送らない）
   G.addPages(r.pg); save(); emit('trip'); emit('records'); return r;

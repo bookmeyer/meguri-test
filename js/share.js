@@ -1,11 +1,11 @@
 // シェア用の画像（スタンプ・常連度・カード・プレイヤーカード）
-import { prefOf, stars, fmtDate, todayISO } from './util.js?v=0.37.9';
-import { S } from './state.js?v=0.37.9';
-import { stampInk, stampSVG, rarityOf, rarityText } from './data.js?v=0.37.9';
-import { ensureStampData } from './shops.js?v=0.37.9';
+import { prefOf, stars, fmtDate, todayISO } from './util.js?v=0.39.0';
+import { S } from './state.js?v=0.39.0';
+import { stampInk, stampSVG, rarityOf, rarityText } from './data.js?v=0.39.0';
+import { ensureStampData } from './shops.js?v=0.39.0';
 const stampPic = async (st, size, opts) => { await ensureStampData(st); return svgToImage(stampSVG(st, true, size, opts)); }; // スタンプの写真（v0.26.0）は data URL にしてから描く
-import { snapshotAt } from './map.js?v=0.37.9';
-import { regularInfo } from './game.js?v=0.37.9';
+import { snapshotAt } from './map.js?v=0.39.0';
+import { regularInfo } from './game.js?v=0.39.0';
 
 const PAPER = '#FFF8EA', INK = '#1B1B1B', INK2 = '#5A554D', SHU = '#FF6A48', LINE = '#1B1B1B';
 const DISP = '"Mochiy Pop P One","Zen Maru Gothic","Hiragino Sans",sans-serif', BODY = '"Zen Maru Gothic","Hiragino Sans",sans-serif';
@@ -89,12 +89,15 @@ export async function profileImage({ level, title, st, topStamps, avatar, handle
 }
 export async function shareBlob(blob, filename, title, text) {
   if (!blob) throw new Error('noblob');
+  // アプリ版：スマホのシェアの画面で（Android の画面の中では navigator.share もダウンロードも使えないため。v0.38.0）
+  if (window.__meguriNative && window.__meguriNative.shareFile) return window.__meguriNative.shareFile(blob, filename, title, text);
   const file = new File([blob], filename, { type: 'image/png' });
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title, text }); return 'shared'; } catch (e) { if (e && e.name === 'AbortError') return 'cancel'; } }
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000); return 'saved';
 }
 // その日の物語（本のページの形）
-export async function storyImage(ch, avatar, handle) {
+// opts.diary：日記（「この日のこと」）を入れるときの文（v0.39.0。入れるかは本人が選ぶ。はじめは入れない）
+export async function storyImage(ch, avatar, handle, opts = {}) {
   const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
   g.fillStyle = PAPER; g.fillRect(0, 0, W, H);
   g.strokeStyle = LINE; g.lineWidth = 4; rrect(g, 40, 40, W - 80, H - 80, 36); g.stroke();
@@ -103,10 +106,41 @@ export async function storyImage(ch, avatar, handle) {
   g.fillStyle = INK; g.font = `64px ${DISP}`; g.fillText(ch.title, 96, 220);
   g.strokeStyle = SHU; g.lineWidth = 4; g.beginPath(); g.moveTo(96, 254); g.lineTo(260, 254); g.stroke();
   let y = 330; const LH = 56, MAXY = H - 300; g.font = `34px ${BODY}`; g.fillStyle = INK;
-  const lines = ch.empty ? [{ s: ch.blank }] : ch.lines;
-  outer: for (const l of lines) { const parts = wrap(g, '　' + l.s, W - 192); for (const p of parts) { if (y > MAXY) { g.fillText('……', 96, y); break outer; } g.fillText(p, 96, y); y += LH; } y += 10; }
+  const dy = String(opts.diary || '').trim();
+  const lines = ch.empty ? (dy ? [] : [{ s: ch.blank }]) : ch.lines;
+  let cut = false;
+  outer: for (const l of lines) { const parts = wrap(g, '　' + l.s, W - 192); for (const p of parts) { if (y > MAXY) { g.fillText('……', 96, y); cut = true; break outer; } g.fillText(p, 96, y); y += LH; } y += 10; }
+  if (dy && !cut && y < MAXY - 60) { // この日のこと（v0.39.0）
+    y += 14; g.fillStyle = SHU; g.font = `28px ${DISP}`; g.fillText('この日のこと', 96, y); y += 52; g.fillStyle = INK; g.font = `30px ${BODY}`;
+    outer2: for (const para of dy.split('\n')) { const parts = para ? wrap(g, '　' + para, W - 192) : ['']; for (const p of parts) { if (y > MAXY) { g.fillText('……', 96, y); break outer2; } g.fillText(p, 96, y); y += 48; } }
+    g.font = `34px ${BODY}`;
+  }
   const boxes = [[`+${ch.earned}`, 'ページ'], [`${ch.km}`, 'km'], [`${(ch.steps || 0).toLocaleString()}`, '歩（目安）'], [`${ch.nStores}`, '訪ねた場所']];
   boxes.forEach(([n, l], i) => { const x = 96 + i * 228; g.fillStyle = '#FFF3C2'; rrect(g, x, H - 250, 204, 120, 22); g.fill(); g.strokeStyle = INK; g.lineWidth = 3; g.stroke(); g.fillStyle = SHU; g.font = `46px ${DISP}`; g.textAlign = 'center'; g.fillText(n, x + 102, H - 185); g.fillStyle = INK2; g.font = `24px ${BODY}`; g.fillText(l, x + 102, H - 148); });
+  footer(g, W, H);
+  return await new Promise((res) => cv.toBlob(res, 'image/png'));
+}
+// 読書カード（営業カレンダー）の月の画像（v0.39.0）：場所と書名は出さない（しおりの色だけ）
+export async function readCardImage(ym, { title, sh, n, mine = -1 }) {
+  const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
+  g.fillStyle = PAPER; g.fillRect(0, 0, W, H);
+  g.strokeStyle = LINE; g.lineWidth = 4; rrect(g, 40, 40, W - 80, H - 80, 36); g.stroke();
+  const [y, m] = ym.split('-').map(Number);
+  g.textAlign = 'left'; g.fillStyle = SHU; g.font = `28px ${DISP}`; g.fillText(`本めぐり　${S.settings.handle ? S.settings.handle + 'の' : ''}${mine >= 0 ? '営業カレンダー' : '読書カード'}`, 96, 130);
+  g.fillStyle = INK; g.font = `60px ${DISP}`; const t = wrap(g, title, W - 192); t.slice(0, 2).forEach((s, i) => g.fillText(s, 96, 210 + i * 70));
+  const top = 210 + Math.min(2, t.length) * 70 + 10;
+  const cw = 120, gx = (W - cw * 7) / 2; const first = new Date(y, m - 1, 1).getDay(); const days = new Date(y, m, 0).getDate();
+  g.textAlign = 'center'; g.font = `24px ${BODY}`; g.fillStyle = INK2; '日月火水木金土'.split('').forEach((w, i) => g.fillText(w, gx + cw * i + cw / 2, top + 10));
+  const shiori = (cx, cy, s) => { const w = 44, h = 64, x = cx - w / 2, y0 = cy - h / 2; g.save(); g.beginPath(); g.moveTo(x, y0); g.lineTo(x + w, y0); g.lineTo(x + w, y0 + h); g.lineTo(cx, y0 + h - 16); g.lineTo(x, y0 + h); g.closePath();
+    if (s.k === 'move') { g.fillStyle = '#2F9BFF'; g.fill(); g.clip(); g.fillStyle = '#FFFFFF'; g.fillRect(x, y0 + h * 0.38, w, h * 0.18); } else { g.fillStyle = s.c; g.fill(); if (s.k === 'mine') { g.fillStyle = '#FFFFFF'; g.beginPath(); g.arc(cx, y0 + h * 0.3, 7, 0, Math.PI * 2); g.fill(); } }
+    g.restore(); g.save(); g.beginPath(); g.moveTo(x, y0); g.lineTo(x + w, y0); g.lineTo(x + w, y0 + h); g.lineTo(cx, y0 + h - 16); g.lineTo(x, y0 + h); g.closePath(); g.strokeStyle = INK; g.lineWidth = 3; g.stroke(); g.restore(); };
+  for (let d = 1; d <= days; d++) {
+    const i = first + d - 1, cx = gx + cw * (i % 7) + cw / 2, cy = top + 60 + Math.floor(i / 7) * 120;
+    g.fillStyle = '#FFFFFF'; rrect(g, cx - 54, cy - 2, 108, 110, 18); g.fill(); g.strokeStyle = '#D9CDB4'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = INK2; g.font = `22px ${BODY}`; g.textAlign = 'left'; g.fillText(String(d), cx - 44, cy + 26); g.textAlign = 'center';
+    const s = sh[String(d).padStart(2, '0')]; if (s) shiori(cx + 8, cy + 62, s);
+  }
+  g.textAlign = 'left'; g.fillStyle = INK; g.font = `40px ${DISP}`; g.fillText(`しおり ${n}日${mine > 0 ? `・営業 ${mine}日` : ''}`, 96, H - 150);
   footer(g, W, H);
   return await new Promise((res) => cv.toBlob(res, 'image/png'));
 }

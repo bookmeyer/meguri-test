@@ -1,20 +1,20 @@
 // 設定の画面と、そこから開くもの：見た目・着せ替え・アイコン・ハンドルネーム・参加コード・送るもののお知らせ・記録を守る・Googleマップの★
-import { SKINS, MAP_SKINS, APP_VER, TRIAL_ON, PROFILE_ON, POLICY_VER } from './config.js?v=0.37.9';
-import { openProfile, profileSummary } from './profile_ui.js?v=0.37.9';
-import { openAvatarPicker } from './setup_ui.js?v=0.37.9';
-import { openGiveCode, openTakeCode } from './transfer_ui.js?v=0.37.9';
-import { homeTip, inAppName } from './start_ui.js?v=0.37.9';
-import { $, esc, fmtDist, icon, $$, mobileOS, isStandalone, emit, todayISO } from './util.js?v=0.37.9';
-import { S, save, parseImport, replace, reset, exportJSON } from './state.js?v=0.37.9';
-import { sfx } from './audio.js?v=0.37.9';
-import { POS } from './position.js?v=0.37.9';
-import { addCustom, STORES, DATA_DATE, rebuild, unhideAll } from './data.js?v=0.37.9';
-import * as MAP from './map.js?v=0.37.9';
-import * as E from './events.js?v=0.37.9';
-import * as GI from './gimport.js?v=0.37.9';
-import { openModal, closeModal, toast, refreshHud, switchView, confirmBox } from './ui.js?v=0.37.9';
-import { applyMapStates, updateNear, updateAreaChip, setTrialUI } from './map_ui.js?v=0.37.9';
-import { openInbox } from './inbox_ui.js?v=0.37.9';
+import { SKINS, MAP_SKINS, APP_VER, TRIAL_ON, PROFILE_ON, POLICY_VER } from './config.js?v=0.39.0';
+import { openProfile, profileSummary } from './profile_ui.js?v=0.39.0';
+import { openAvatarPicker } from './setup_ui.js?v=0.39.0';
+import { openGiveCode, openTakeCode, moveReward, fromOf } from './transfer_ui.js?v=0.39.0';
+import { homeTip, inAppName } from './start_ui.js?v=0.39.0';
+import { $, esc, fmtDist, icon, $$, mobileOS, isStandalone, emit, todayISO, NATIVE } from './util.js?v=0.39.0';
+import { S, save, parseImport, replace, reset, exportJSON } from './state.js?v=0.39.0';
+import { sfx } from './audio.js?v=0.39.0';
+import { POS } from './position.js?v=0.39.0';
+import { addCustom, STORES, DATA_DATE, rebuild, unhideAll } from './data.js?v=0.39.0';
+import * as MAP from './map.js?v=0.39.0';
+import * as E from './events.js?v=0.39.0';
+import * as GI from './gimport.js?v=0.39.0';
+import { openModal, closeModal, toast, refreshHud, switchView, confirmBox } from './ui.js?v=0.39.0';
+import { applyMapStates, updateNear, updateAreaChip, setTrialUI } from './map_ui.js?v=0.39.0';
+import { openInbox } from './inbox_ui.js?v=0.39.0';
 
 // ---------- Googleマップの★を読み込む ----------
 export function googleHelp() {
@@ -86,7 +86,7 @@ export function renderSettings() {
     <div class="setting"><div><div class="l">プライバシーポリシー</div><div class="s">運営に届くもの・使い方・消し方</div></div><a class="btn" href="privacy.html" target="_blank" rel="noopener">見る</a></div>
     <div class="setting"><div><div class="l">利用規約</div><div class="s">使うときのきまり・お店の方への約束（v0.26.0）</div></div><a class="btn" href="terms.html" target="_blank" rel="noopener">見る</a></div>
     <div class="setting"><div><div class="l">端末の番号</div><div class="s">名前のないランダムな番号です。送った記録やプロフィールを消してほしいときに、お問い合わせに添えてください：<span class="mono">${esc(E.deviceId())}</span></div></div></div>
-    <div class="about">本めぐり v${APP_VER}。本屋をめぐって、本とめぐりあう。本屋と図書館の位置ゲームです。<br>歩きながら画面を見ないでください。運転中は使わないでください。お店では、店の方やほかのお客さんの迷惑にならないようにお願いします。<br>位置（座標）は、この端末の中で距離を出すためだけに使い、送りません。参加の人数を数えるために、スタンプを押した店の番号・日時・店の近くで押したか・お試し歩きか・どのイベントかを、名前のない、ランダムな番号といっしょに、本をつなぐ（tsunagubooks.com）へ送ります。読書の機能の使われ方を見るために、読書の日時（何時まで）・長さ・読んだ場所の種類・移動読書の距離も送ります（本の名前と読んだ場所は送りません。くわしくはプライバシーポリシー）。そのほかの記録は、この端末の中だけに残ります。<br>画面を出すために、Google Fonts（文字）・jsDelivr（地図のプログラム）・OpenFreeMap（地図の絵。見ている範囲）へ、本を調べるときは openBD（その本の番号）へつなぎます。このとき、端末のIPアドレスやブラウザの種類が相手に届きます。<br><br>
+    <div class="about">本めぐり v${APP_VER}${NATIVE ? `（アプリ・${mobileOS() === 'ios' ? 'iPhone' : 'Android'}）` : ''}。本屋をめぐって、本とめぐりあう。本屋と図書館の位置ゲームです。<br>歩きながら画面を見ないでください。運転中は使わないでください。お店では、店の方やほかのお客さんの迷惑にならないようにお願いします。<br>位置（座標）は、この端末の中で距離を出すためだけに使い、送りません。参加の人数を数えるために、スタンプを押した店の番号・日時・店の近くで押したか・お試し歩きか・どのイベントかを、名前のない、ランダムな番号といっしょに、本をつなぐ（tsunagubooks.com）へ送ります。読書の機能の使われ方を見るために、読書の日時（何時まで）・長さ・読んだ場所の種類・移動読書の距離も送ります（本の名前と読んだ場所は送りません。くわしくはプライバシーポリシー）。そのほかの記録は、この端末の中だけに残ります。<br>画面を出すために、Google Fonts（文字）・jsDelivr（地図のプログラム）・OpenFreeMap（地図の絵。見ている範囲）へ、本を調べるときは openBD（その本の番号）へつなぎます。このとき、端末のIPアドレスやブラウザの種類が相手に届きます。<br><br>
       店の位置：© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors（ODbL）。地図：<a href="https://openfreemap.org/" target="_blank" rel="noopener">OpenFreeMap</a>・<a href="https://openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a>。本の情報と表紙：<a href="https://openbd.jp/" target="_blank" rel="noopener">openBD</a>（表紙は紹介のための参照表示で、保存しません）。書名でさがす：<a href="https://ndlsearch.ndl.go.jp/" target="_blank" rel="noopener">国立国会図書館サーチ</a>の API（国立国会図書館の書誌データ・<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>。著者名の表し方を整えて出しています。送るのは、さがす言葉だけです）。地図にない本屋を住所で知らせるとき：国土地理院の住所検索（入れた住所だけを送ります）。住所の目安（「○○ 付近」）：<a href="https://github.com/geolonia/japanese-addresses" target="_blank" rel="noopener">Geolonia 住所データ</a>（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>。国土交通省 位置参照情報をもとに作成。店の位置にいちばん近い町丁目です）。地図の描画：MapLibre GL JS。文字：Google Fonts。<br>
       店のデータは ${DATA_DATE} 時点の OpenStreetMap（有志が作る地図）で、閉店や名前の変更が反映されていない店があります。店のページの「閉店している」で外せ、「名前が違う」で直せます（この端末だけ。記録の書き出しに含まれます）。</div>`;
   $('#st-back').onclick = () => switchView('map');
@@ -116,10 +116,15 @@ export function renderSettings() {
   if ($('#st-trial')) $('#st-trial').onclick = () => { setTrialUI(!POS.fake); renderSettings(); };
   $('#st-export').onclick = exportFile;
   if ($('#st-home')) $('#st-home').onclick = homeTip;
-  $('#st-import').addEventListener('change', async (e) => { const f = e.target.files[0]; if (!f) return; try { const d = parseImport(await f.text()); confirmBox($('#st-area'), `読み込むと、いまの記録（スタンプ${Object.keys(S.stamps).length}・カード${S.cards.length}）は置き換わります。`, () => { replace(d); rebuild(); MAP.setStores(STORES); applyMapStates(); refreshHud(); toast('読み込みました', 'ok'); renderSettings(); }, '置き換える'); } catch (err) { toast('読み込めませんでした（このアプリで書き出したファイルを選んでください）', 'warn'); } e.target.value = ''; });
+  $('#st-import').addEventListener('change', async (e) => { const f = e.target.files[0]; if (!f) return; try { const txt = await f.text(); const d = parseImport(txt); confirmBox($('#st-area'), `読み込むと、いまの記録（スタンプ${Object.keys(S.stamps).length}・カード${S.cards.length}）は置き換わります。`, () => { replace(d); rebuild(); MAP.setStores(STORES); applyMapStates(); refreshHud(); toast('読み込みました', 'ok'); moveReward(fromOf(txt)); renderSettings(); }, '置き換える'); } catch (err) { toast('読み込めませんでした（このアプリで書き出したファイルを選んでください）', 'warn'); } e.target.value = ''; });
   $('#st-unhide').onclick = () => { unhideAll(); save(); MAP.setStores(STORES); applyMapStates(); updateNear(); toast('戻しました', 'ok'); renderSettings(); };
   $('#st-clear').onclick = () => confirmBox($('#st-area'), 'この端末の記録（スタンプ・訪問・カード・行きたい・追加した店・ページ）をすべて消します。戻せません。', () => { reset(); E.flushSoon(500); rebuild(); MAP.setStores(STORES); applyMapStates(); refreshHud(); toast('消しました'); renderSettings(); });
-  $('#st-diag').onclick = async () => { const out = $('#st-diag-out'); const rows = []; rows.push(['位置', navigator.geolocation ? '使える' : '使えない']); rows.push(['カメラ', navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? '使える' : '使えない']); rows.push(['バーコード読み取り（標準）', 'BarcodeDetector' in window ? 'あり' : 'なし（代わりの部品を使います）']); let storage = '?'; try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); storage = '使える'; } catch (e) { storage = '使えない'; } rows.push(['保存', storage]); rows.push(['https', location.protocol === 'https:' ? 'はい' : 'いいえ（位置とカメラにはhttpsが要ります）']); rows.push(['ホーム画面に追加', window.matchMedia('(display-mode: standalone)').matches ? '追加ずみ' : '未追加']);  rows.push(['共有', navigator.share ? '使える' : '使えない（画像は保存になります）']); out.innerHTML = `<div class="status-card">${rows.map(([k, v]) => `<div><b>${k}</b>：${v}</div>`).join('')}</div>`; };
+  $('#st-diag').onclick = async () => { const out = $('#st-diag-out'); const rows = []; rows.push(['位置', navigator.geolocation ? '使える' : '使えない']); rows.push(['カメラ', navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? '使える' : '使えない']); rows.push(['バーコード読み取り（標準）', 'BarcodeDetector' in window ? 'あり' : 'なし（代わりの部品を使います）']); let storage = '?'; try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); storage = '使える'; } catch (e) { storage = '使えない'; } rows.push(['保存', storage]); rows.push(['https', location.protocol === 'https:' ? 'はい' : 'いいえ（位置とカメラにはhttpsが要ります）']); rows.push(['ホーム画面に追加', window.matchMedia('(display-mode: standalone)').matches ? '追加ずみ' : '未追加']);  rows.push(['共有', navigator.share ? '使える' : '使えない（画像は保存になります）']);
+    // アプリ版：「読書中」の表示の様子（11/25 iPhone で出なかった。部品が入っているか・いくつ出ているか）
+    const RN = NATIVE && window.__meguriNative && window.__meguriNative.reading;
+    if (RN && RN.diag) { let d = {}; try { d = await RN.diag(); } catch (e) { d = { error: String((e && e.message) || e) }; } const ios = mobileOS() === 'ios';
+      rows.push(['読書中の表示', d.error ? `確かめられません（${esc(d.error)}）` : ios ? `iOS ${esc(d.os || '?')}・ライブアクティビティ ${d.enabled ? 'オン' : 'オフ'}・出ている数 ${d.count ?? '?'}・部品 ${esc((d.appex || []).join(', ') || 'なし')}・宣言 ${d.supports ? 'あり' : 'なし'}` : `Android ${esc(d.os || '?')}・お知らせ ${d.enabled ? '許可' : '許可なし'}・重要度 ${d.importance ?? '?'}`]); }
+    out.innerHTML = `<div class="status-card">${rows.map(([k, v]) => `<div><b>${k}</b>：${v}</div>`).join('')}</div>`; };
 }
 export function applyTheme() {
   const t = S.settings.theme; const dark = t === 'dark' || (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -173,22 +178,31 @@ export function privacyNotice() {
 // ---------- プライバシーポリシーのお知らせ（v0.20.1）：もう使っている人に一度だけ。「わかった」で同意 ----------
 export function policyNotice(after) {
   const changed = !!S.settings.policy; // 前の版に同意している人には「変えました」
-  openModal(`<h2>プライバシーポリシーを${changed ? '変えました' : '載せました'}</h2>${changed ? `<ul class="plain">${String(S.settings.policy) < '2026-11-24' ? '<li><b>参加のお申し込み</b>と<b>お問い合わせ・ご要望</b>の窓口を作りました（設定の「お問い合わせ・ご要望」）</li>' : ''}${String(S.settings.policy) < '2026-11-22' ? '<li>店のページの「いま行くと、出会えるもの」に、<b>お店が X に #本めぐり を付けて投稿したもの</b>を、X の画面のまま出せるようにしました。その投稿が画面に出たときに X の部品を読み込むので、見たことが X に伝わります。設定の「お店の X の投稿を表示しない」で止められます</li>' : ''}${String(S.settings.policy) < '2026-11-20b' ? '<li><b>9つの質問（プロフィール）</b>は、始めるときか、はじめてスタンプを押した次の日などに答えていただくようにしました</li><li>本めぐりを開いた日に、<b>どこで開いたか</b>（SNSなどのアプリの中・ブラウザ・ホーム画面のアイコン・パソコンのどれか）を添えて送るようにしました。使い始める人が、どこで止まっているかを知るためです</li>' : ''}${String(S.settings.policy) < '2026-11-20' ? '<li>本のカードを作ったとき、<b>本の番号（ISBN）と月に、プロフィールの世代と性別を添えて</b>送るようにしました。店の番号・日付・端末の番号はつけないので、誰のカードかはわかりません。「この本は30代の女性に多い」を数えるためです。設定の「出会った本に世代と性別を添える」で止められます</li>' : ''}${String(S.settings.policy) < '2026-11-19b' ? '<li>本のカードを作ったとき、<b>店の番号・本の番号・日付だけ</b>を、端末の番号をつけずに送るようにしました（誰のカードかは運営にもわかりません）。「この店でこの本に出会った人が○人」を数えるためです</li><li>人数の集計（ひとりが特定されない統計）を、本屋さん・出版社などに、有償または無償で提供することがあると書きました</li><li>利用規約を作りました（使うときのきまり・お店の方への約束）</li>' : ''}${String(S.settings.policy) < '2026-11-19' ? '<li>読書の記録の一部を送るようにしました：読んだ日と時刻（何時まで）・読んだ長さ・読んだ場所の種類（移動読書／本屋のそば／その場で）・移動読書の距離。本を読み終えた・里帰り・1冊の旅を開いた／シェアした、と、1日1回「開いた」ことも。読書の機能がどう使われているかを見るためです</li><li><b>本の名前・読んだ場所・名前は送りません</b></li>' : ''}${String(S.settings.policy) < '2026-11-04b' ? '<li>はじめるときに、ハンドルネーム・アイコン・プロフィールを決めていただきます（プロフィールは、名前以外の答えを統計データとして使います）</li><li>参加の記録（スタンプを押した店と日時など）は、本めぐりを使うあいだ、いつも送ります</li><li>引き継ぎコードで、記録を暗号にして24時間だけ預けられるようにしました</li>' : ''}</ul>` : '<p>運営に届くもの（参加の記録・読書と使い方の記録・店の情報の報告・プロフィール）と、その使い方・持つ期間・消し方をまとめました。</p>'}<p>使い続けると、同意したことになります。</p><p class="muted small">名前・メールアドレス・位置は、これまでどおり送りません（お問い合わせなどの窓口で、書いていただいたときだけ受け取ります）。</p><div class="actions"><a class="btn" href="privacy.html" target="_blank" rel="noopener">ポリシー</a><a class="btn" href="terms.html" target="_blank" rel="noopener">利用規約</a><button class="btn primary" id="pol-ok">わかった</button></div>`);
+  openModal(`<h2>プライバシーポリシーを${changed ? '変えました' : '載せました'}</h2>${changed ? `<ul class="plain">${String(S.settings.policy) < '2026-11-26' ? '<li><b>Android・iPhone のアプリ版</b>のことを書きました（読書中の表示・バーコードを読むときのカメラ・日記と自分の本屋は、スマートフォンの中だけです）</li><li>使い方の記録に、<b>1分読む・読書カード・自分の本屋・日記・「ほしい」の回数</b>を足しました（日記の文や本の名前は送りません）</li>' : ''}${String(S.settings.policy) < '2026-11-24' ? '<li><b>参加のお申し込み</b>と<b>お問い合わせ・ご要望</b>の窓口を作りました（設定の「お問い合わせ・ご要望」）</li>' : ''}${String(S.settings.policy) < '2026-11-22' ? '<li>店のページの「いま行くと、出会えるもの」に、<b>お店が X に #本めぐり を付けて投稿したもの</b>を、X の画面のまま出せるようにしました。その投稿が画面に出たときに X の部品を読み込むので、見たことが X に伝わります。設定の「お店の X の投稿を表示しない」で止められます</li>' : ''}${String(S.settings.policy) < '2026-11-20b' ? '<li><b>9つの質問（プロフィール）</b>は、始めるときか、はじめてスタンプを押した次の日などに答えていただくようにしました</li><li>本めぐりを開いた日に、<b>どこで開いたか</b>（SNSなどのアプリの中・ブラウザ・ホーム画面のアイコン・パソコンのどれか）を添えて送るようにしました。使い始める人が、どこで止まっているかを知るためです</li>' : ''}${String(S.settings.policy) < '2026-11-20' ? '<li>本のカードを作ったとき、<b>本の番号（ISBN）と月に、プロフィールの世代と性別を添えて</b>送るようにしました。店の番号・日付・端末の番号はつけないので、誰のカードかはわかりません。「この本は30代の女性に多い」を数えるためです。設定の「出会った本に世代と性別を添える」で止められます</li>' : ''}${String(S.settings.policy) < '2026-11-19b' ? '<li>本のカードを作ったとき、<b>店の番号・本の番号・日付だけ</b>を、端末の番号をつけずに送るようにしました（誰のカードかは運営にもわかりません）。「この店でこの本に出会った人が○人」を数えるためです</li><li>人数の集計（ひとりが特定されない統計）を、本屋さん・出版社などに、有償または無償で提供することがあると書きました</li><li>利用規約を作りました（使うときのきまり・お店の方への約束）</li>' : ''}${String(S.settings.policy) < '2026-11-19' ? '<li>読書の記録の一部を送るようにしました：読んだ日と時刻（何時まで）・読んだ長さ・読んだ場所の種類（移動読書／本屋のそば／その場で）・移動読書の距離。本を読み終えた・里帰り・1冊の旅を開いた／シェアした、と、1日1回「開いた」ことも。読書の機能がどう使われているかを見るためです</li><li><b>本の名前・読んだ場所・名前は送りません</b></li>' : ''}${String(S.settings.policy) < '2026-11-04b' ? '<li>はじめるときに、ハンドルネーム・アイコン・プロフィールを決めていただきます（プロフィールは、名前以外の答えを統計データとして使います）</li><li>参加の記録（スタンプを押した店と日時など）は、本めぐりを使うあいだ、いつも送ります</li><li>引き継ぎコードで、記録を暗号にして24時間だけ預けられるようにしました</li>' : ''}</ul>` : '<p>運営に届くもの（参加の記録・読書と使い方の記録・店の情報の報告・プロフィール）と、その使い方・持つ期間・消し方をまとめました。</p>'}<p>使い続けると、同意したことになります。</p><p class="muted small">名前・メールアドレス・位置は、これまでどおり送りません（お問い合わせなどの窓口で、書いていただいたときだけ受け取ります）。</p><div class="actions"><a class="btn" href="privacy.html" target="_blank" rel="noopener">ポリシー</a><a class="btn" href="terms.html" target="_blank" rel="noopener">利用規約</a><button class="btn primary" id="pol-ok">わかった</button></div>`);
   $('#pol-ok').onclick = () => { S.settings.policy = POLICY_VER; S.settings.privacyV10 = 1; save(); E.noteOpen(); closeModal(); if (after) after(); };
 }
 // ---------- 記録を守る：ホーム画面に追加（v0.10.1） ----------
 // iPhone の Safari は、しばらく開かないサイトの記録を消すことがある。ホーム画面のアイコンから開けば消えにくい
 // iPhone ではアイコンと Safari で記録の置き場所が別なので、記録がある人には引き継ぎコードを案内する（v0.28.0。前は書き出し→読み込み）
 export function exportFile() {
+  // アプリ版：ファイルに保存して、スマホのシェアの画面で渡す（Android の画面の中ではダウンロードが使えないため。v0.38.0）
+  if (window.__meguriNative && window.__meguriNative.saveText) { window.__meguriNative.saveText(exportJSON(), `honya-map-${todayISO()}.json`).then((ok) => ok && toast('書き出しました', 'ok')); return; }
   const blob = new Blob([exportJSON()], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `honya-map-${todayISO()}.json`; document.body.appendChild(a); a.click(); a.remove(); toast('書き出しました', 'ok');
 }
 // homeTip（ホーム画面に追加のやり方）は start_ui.js に移した（v0.28.0）
+// お試し歩きのコード（v0.38.0・2026-11-25）：ストアの審査する人など、本屋さんの近くにいない人が試せるように
+// 参加コードに otameshi を入れると、作る人の隠しスイッチ（meguri_trial）と同じに：地図の「お試し歩き」のボタンが出て、地図を押した場所にいることになる（お試しのスタンプは記録に数えない）
+const TRIAL_CODE = 'otameshi';
+const trialSet = (on) => { try { if (on) localStorage.setItem('meguri_trial', '1'); else localStorage.removeItem('meguri_trial'); } catch (e) {} };
 export function joinModal(after) {
-  const cur = S.settings.joinCode || '';
+  const trial = TRIAL_ON && !S.settings.joinCode;
+  const cur = S.settings.joinCode || (trial ? TRIAL_CODE : '');
   openModal(`<h2>参加コード</h2><p class="hint">お試しなどで渡されたコードを入れると、その人たちだけのイベントが見えます。</p><div class="field"><label for="jc-in">コード（英数字と - _）</label><input type="text" id="jc-in" maxlength="40" value="${esc(cur)}" autocomplete="off" autocapitalize="off"></div><div class="actions"><button class="btn primary" id="jc-ok">決める</button>${cur ? '<button class="btn ghost" id="jc-clear">外す</button>' : '<button class="btn ghost" id="jc-cancel">やめる</button>'}</div>`);
   const inp = $('#jc-in'); inp.focus();
   const finish = async (v) => { closeModal(); await E.setJoinCode(v); applyMapStates(); refreshHud(); if (after) after(); toast(v ? `参加コード「${v}」を入れました` : '参加コードを外しました', 'ok'); };
-  $('#jc-ok').onclick = () => { const v = inp.value.trim().toLowerCase(); if (!/^[a-z0-9_-]{2,40}$/.test(v)) { toast('英数字と - _ の2〜40字で入れてください', 'warn'); return; } finish(v); };
-  if ($('#jc-clear')) $('#jc-clear').onclick = () => finish('');
+  $('#jc-ok').onclick = () => { const v = inp.value.trim().toLowerCase(); if (!/^[a-z0-9_-]{2,40}$/.test(v)) { toast('英数字と - _ の2〜40字で入れてください', 'warn'); return; }
+    if (v === TRIAL_CODE) { if (trial) { closeModal(); return; } closeModal(); trialSet(true); toast('お試し歩きを入れました。地図の「お試し歩き」のボタンを押してから、地図の好きな場所を押してください', 'ok'); setTimeout(() => location.reload(), 2200); return; }
+    finish(v); };
+  if ($('#jc-clear')) $('#jc-clear').onclick = () => { if (trial) { closeModal(); trialSet(false); toast('お試し歩きを外しました', 'ok'); setTimeout(() => location.reload(), 1200); return; } finish(''); };
   if ($('#jc-cancel')) $('#jc-cancel').onclick = closeModal;
 }

@@ -1,16 +1,16 @@
 // ちかく（view-radar）：近い店・書店員さんの1冊・行きたい店・ピンの色の見方
-import { RANGE_M, TRIAL_ON } from './config.js?v=0.37.9';
-import { $, esc, fmtDist, arrowOf, bearing, icon, $$, dist, prefOf, stars } from './util.js?v=0.37.9';
-import { hasPos, POS } from './position.js?v=0.37.9';
-import { STORES, bookTitle, pickOpen, isFeat, rarityOf } from './data.js?v=0.37.9';
-import * as MAP from './map.js?v=0.37.9';
-import * as G from './game.js?v=0.37.9';
-import * as J from './journey.js?v=0.37.9';
-import { dirLink, stopLinks, switchView, emptyBox } from './ui.js?v=0.37.9';
-import { openSheet, locate, setTrialUI, warp, NEAR } from './map_ui.js?v=0.37.9';
-import { hasCard, liveEvents, narrow } from './events.js?v=0.37.9';
-import { S } from './state.js?v=0.37.9';
-import { GENRES, picUrl, postAge } from './shops.js?v=0.37.9';
+import { RANGE_M, TRIAL_ON, MAP_CREDIT } from './config.js?v=0.39.0';
+import { $, esc, fmtDist, arrowOf, bearing, icon, $$, dist, prefOf, stars } from './util.js?v=0.39.0';
+import { hasPos, POS } from './position.js?v=0.39.0';
+import { STORES, bookTitle, pickOpen, isFeat, rarityOf } from './data.js?v=0.39.0';
+import * as MAP from './map.js?v=0.39.0';
+import * as G from './game.js?v=0.39.0';
+import * as J from './journey.js?v=0.39.0';
+import { dirLink, stopLinks, switchView, emptyBox } from './ui.js?v=0.39.0';
+import { openSheet, locate, setTrialUI, warp, NEAR, startAdd } from './map_ui.js?v=0.39.0';
+import { hasCard, liveEvents, narrow } from './events.js?v=0.39.0';
+import { S } from './state.js?v=0.39.0';
+import { GENRES, picUrl, postAge } from './shops.js?v=0.39.0';
 
 // ---------- ちかく：行きたい店（近い順） ----------
 export function renderRadarWants() {
@@ -71,11 +71,17 @@ function renderFairs() {
   $$('#radar-fairs .item').forEach((x) => x.addEventListener('click', () => openSheet(x.dataset.id)));
   if ($('#fair-more')) $('#fair-more').onclick = () => { fairsAll = !fairsAll; renderFairs(); };
 }
+// 地図にない本屋（11/27 テスターさんの声「神保町は新刊書店、古書店、ブックカフェ、図書館とすごいことになる」）：近くの店の一覧のいちばん下に
+function renderAdd() {
+  const el = $('#radar-add'); if (!el) return;
+  el.innerHTML = `<div class="status-card radar-add"><b>この近くに、地図にない本屋がありますか？</b><div class="muted small" style="margin:4px 0">新刊・古書・ブックカフェ・図書館、どれでも。運営が確かめてから、みんなの地図に載せます。</div><div class="rp-reward">${icon('flag')}<span>地図に載ったら <b>+${MAP_CREDIT.add}ページ</b>と称号「開拓者」</span></div><button class="btn primary wide" id="rd-add">${icon('add')}地図にない本屋を知らせる</button></div>`;
+  $('#rd-add').onclick = () => startAdd();
+}
 export function renderRadar() {
-  renderLegend(); renderRadarWants(); renderParts(); renderPicks(); renderFairs();
+  renderLegend(); renderRadarWants(); renderParts(); renderPicks(); renderFairs(); renderAdd();
   const st = $('#radar-status'), list = $('#radar-list');
   if (!hasPos()) { st.className = 'status-card'; st.innerHTML = `現在地がまだありません。<div class="actions"><button class="btn primary" id="rd-loc">${icon('locate')}現在地を追う</button>${TRIAL_ON ? `<button class="btn" id="rd-trial">${icon('foot')}お試し歩き</button>` : ''}</div>`; $('#rd-loc').onclick = () => { switchView('map'); locate(); }; if ($('#rd-trial')) $('#rd-trial').onclick = () => { switchView('map'); setTrialUI(true); warp(); }; list.innerHTML = ''; return; }
   st.className = 'status-card gold'; st.innerHTML = `${POS.fake ? '<span class="badge feat">お試し</span>' : '<span class="badge ao">追跡中</span>'} 射程内 <b>${NEAR.inRange.size}</b>店　<span class="muted small">${POS.acc ? `誤差 約${Math.round(POS.acc)}m　` : ''}店から${RANGE_M}m以内でスタンプが押せます</span>`;
-  list.innerHTML = NEAR.list.map(({ s, d }) => `<div class="item ${d <= RANGE_M ? 'in' : ''}" data-id="${esc(s.i)}"><div class="main"><div class="name">${G.hasStamp(s.i) ? icon('check') + ' ' : ''}${isFeat(s.i) ? '<span class="crown">👑</span> ' : ''}${esc(s.n)}${s.part && s.part.fresh ? ' <span class="badge part">参加店</span>' : ''}${s.u ? ' <span class="badge">古書店</span>' : ''}${s.t === 'l' ? ' <span class="badge lib">図書館</span>' : ''}</div><div class="sub">${esc(s.a || prefOf(s))}　<span class="stars">${stars(rarityOf(s))}</span></div></div><div class="dist">${d <= RANGE_M ? '射程内' : fmtDist(d)}<br>${arrowOf(bearing(POS.lat, POS.lon, s.la, s.lo))}</div></div>`).join('') || emptyBox('radar', '3kmの中に店がありません。');
+  list.innerHTML = NEAR.list.map(({ s, d }) => `<div class="item ${d <= RANGE_M ? 'in' : ''}" data-id="${esc(s.i)}"><div class="main"><div class="name">${G.hasStamp(s.i) ? icon('check') + ' ' : ''}${isFeat(s.i) ? '<span class="crown">👑</span> ' : ''}${esc(s.n)}${s.part && s.part.fresh ? ' <span class="badge part">参加店</span>' : ''}${s.u ? ` <span class="badge">${s.ub ? '新刊・古書' : '古書店'}</span>` : ''}${s.t === 'l' ? ' <span class="badge lib">図書館</span>' : ''}</div><div class="sub">${esc(s.a || prefOf(s))}　<span class="stars">${stars(rarityOf(s))}</span></div></div><div class="dist">${d <= RANGE_M ? '射程内' : fmtDist(d)}<br>${arrowOf(bearing(POS.lat, POS.lon, s.la, s.lo))}</div></div>`).join('') || emptyBox('radar', '3kmの中に店がありません。');
   $$('#radar-list .item').forEach((el) => el.addEventListener('click', () => openSheet(el.dataset.id)));
 }

@@ -1,13 +1,13 @@
 // 画面の共通の部品：トースト・モーダル・確かめの箱・タブの切りかえ・見出し帯・地図の下のチケット・バーコードの読み取り・書名でさがす・道順のボタン
-import { pagesForVol } from './config.js?v=0.37.9';
-import { gmapDir, $$, icon, $, esc, emit, dist } from './util.js?v=0.37.9';
-import { S } from './state.js?v=0.37.9';
-import { haptic } from './audio.js?v=0.37.9';
-import { lookupIsbn, lookupBook, searchBooks, coversOf, STORES } from './data.js?v=0.37.9';
-import { POS, hasPos } from './position.js?v=0.37.9';
-import * as MAP from './map.js?v=0.37.9';
-import * as G from './game.js?v=0.37.9';
-import * as E from './events.js?v=0.37.9';
+import { pagesForVol } from './config.js?v=0.39.0';
+import { gmapDir, $$, icon, $, esc, emit, dist, APPX } from './util.js?v=0.39.0';
+import { S } from './state.js?v=0.39.0';
+import { haptic } from './audio.js?v=0.39.0';
+import { lookupIsbn, lookupBook, searchBooks, coversOf, STORES } from './data.js?v=0.39.0';
+import { POS, hasPos } from './position.js?v=0.39.0';
+import * as MAP from './map.js?v=0.39.0';
+import * as G from './game.js?v=0.39.0';
+import * as E from './events.js?v=0.39.0';
 
 export const dirLink = (st, label = '道順') => `<a class="btn" href="${gmapDir(st)}" target="_blank" rel="noopener" data-stop>${label}</a>`;
 export const stopLinks = (root) => $$('[data-stop]', root).forEach((a) => a.addEventListener('click', (e) => e.stopPropagation()));
@@ -23,7 +23,7 @@ export function confirmBox(container, msg, onYes, yesLabel = '消す') { contain
 export function switchView(v) {
   const prev = currentView; currentView = v; if (v !== 'map') closeSheet();
   // めぐり帳を開いたとき：いつも「物語」から（v0.32.6・11/20 ぶっくまさん「defaultは物語がいいかな」）
-  if (v === 'zukan' && prev !== 'zukan') currentSub = 'log';
+  if (v === 'zukan' && prev !== 'zukan') currentSub = APPX ? 'shop' : 'log'; // 11/27：アプリ版は自分の本屋を最初に開く（ブラウザ版は物語のまま。自分の本屋はアプリ版だけなので）
   $$('.view').forEach((el) => el.classList.toggle('active', el.id === 'view-' + v));
   $$('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.view === v));
   if (v === 'map') MAP.resize();

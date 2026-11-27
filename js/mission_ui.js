@@ -1,15 +1,15 @@
 // ラリー（view-mission）：イベント・今日と今週のお題・推し店
-import { PG, PREFS } from './config.js?v=0.37.9';
-import { esc, icon, $, $$, dist, fmtDist, weekKey, todayISO, fmtDate, prefOf } from './util.js?v=0.37.9';
-import { S } from './state.js?v=0.37.9';
-import { hasPos, POS } from './position.js?v=0.37.9';
-import { BYID, stampSVG, STORES, RALLIES, FEAT } from './data.js?v=0.37.9';
-import * as MAP from './map.js?v=0.37.9';
-import * as G from './game.js?v=0.37.9';
-import * as E from './events.js?v=0.37.9';
-import { switchView, toast, emptyBox, openModal, closeModal } from './ui.js?v=0.37.9';
-import { openSheet } from './map_ui.js?v=0.37.9';
-import { openTitles } from './titles_ui.js?v=0.37.9'; // 称号の一覧（実績を称号にまとめた・v0.34.0）
+import { PG, PREFS } from './config.js?v=0.39.0';
+import { esc, icon, $, $$, dist, fmtDist, weekKey, todayISO, fmtDate, prefOf } from './util.js?v=0.39.0';
+import { S } from './state.js?v=0.39.0';
+import { hasPos, POS } from './position.js?v=0.39.0';
+import { BYID, stampSVG, STORES, RALLIES, FEAT } from './data.js?v=0.39.0';
+import * as MAP from './map.js?v=0.39.0';
+import * as G from './game.js?v=0.39.0';
+import * as E from './events.js?v=0.39.0';
+import { switchView, toast, emptyBox, openModal, closeModal } from './ui.js?v=0.39.0';
+import { openSheet } from './map_ui.js?v=0.39.0';
+import { openTitles } from './titles_ui.js?v=0.39.0'; // 称号の一覧（実績を称号にまとめた・v0.34.0）
 
 // ---------- ラリー（view-mission）：今日・今週のお題、推し店、ご当地ラリー、実績 ----------
 // ---------- イベント（ラリーの画面の一番上。設定はサーバーの管理画面から） ----------
@@ -51,7 +51,7 @@ function renderEvents() {
     const e = E.EV.list.find((x) => String(x.id) === b.dataset.evshare); if (!e) return;
     const tags = [...new Set(['#本めぐり', ...String(e.hashtag || '').split(/\s+/).filter(Boolean)])].join(' ');
     const text = `${e.name}に参加中。${E.evCount(e.id)}軒の本屋・図書館でスタンプを押しました ${tags}`;
-    try { if (navigator.share) { await navigator.share({ text }); G.noteShare('event', '', 'shared'); } else { await navigator.clipboard.writeText(text); toast('文をコピーしました', 'ok'); } } catch (err) { if (!(err && err.name === 'AbortError')) toast('シェアできませんでした', 'warn'); }
+    try { if (window.__meguriNative && window.__meguriNative.shareText) { if (await window.__meguriNative.shareText(text)) G.noteShare('event', '', 'shared'); } else if (navigator.share) { /* アプリ版はスマホのシェアの画面で（v0.38.0） */ await navigator.share({ text }); G.noteShare('event', '', 'shared'); } else { await navigator.clipboard.writeText(text); toast('文をコピーしました', 'ok'); } } catch (err) { if (!(err && err.name === 'AbortError')) toast('シェアできませんでした', 'warn'); }
   }));
 }
 // ---------- イベントの参加店の一覧（v0.18.1。ぶっくまさん 11/3「一覧もわからなければ」） ----------

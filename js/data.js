@@ -1,22 +1,33 @@
 // 本屋・図書館・ラリーのデータ。スタンプ（その店だけの絵柄）の見た目もここ
-import { DEMO_STORE } from './config.js?v=0.37.9';
-import { sleep, $, weekKey, prefOf, hash32, esc, todayISO, dist } from './util.js?v=0.37.9';
-import { S } from './state.js?v=0.37.9';
+import { DEMO_STORE } from './config.js?v=0.39.0';
+import { sleep, $, weekKey, prefOf, hash32, esc, todayISO, dist, NATIVE } from './util.js?v=0.39.0';
+import { S } from './state.js?v=0.39.0';
 
 export let STORES = [];
 export let RALLIES = [];
 export const BYID = new Map();
 export const FEAT = new Map(); // 県 → 今週の推し店の id
 let baseLoaded = false;
-async function fetchJSON(url, tries = 3) {
+// アプリ版（2026-11-25〜）：店のデータは、まず本めぐりのウェブにある最新を読む（アプリを出し直さなくても、閉店・新しい店・場所の直しが届く）
+// つながらない・遅い（6秒）・形がおかしいときは、アプリに入っているデータを使う。ブラウザ版はいままでどおり同じ場所から読む
+// ※ だから店のデータの形は「足すだけ」にする（古いアプリも新しいデータを読むため）
+const LIVE = NATIVE ? 'https://meguri.tsunagubooks.com/' : '';
+async function fetchLive(url, good) {
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 6000);
+  try { const r = await fetch(LIVE + url, { cache: 'no-cache', signal: ctl.signal }); if (r.ok) { const j = await r.json(); if (good(j)) return j; } } catch (e) {} finally { clearTimeout(tm); }
+  return null;
+}
+async function fetchJSON(url, tries = 3, good = (j) => j != null) {
+  if (LIVE) { const j = await fetchLive(url, good); if (j != null) return j; }
   for (let i = 0; i < tries; i++) {
     try { const r = await fetch(url, { cache: 'no-cache' }); if (r.ok) return await r.json(); } catch (e) {}
     await sleep(400 * (i + 1));
   }
   return null;
 }
+const isList = (j) => Array.isArray(j) && j.length > 0;
 export async function loadAll() {
-  const [base, libs, rallies, picks, gone] = await Promise.all([fetchJSON('data/bookstores.json'), fetchJSON('data/libraries.json'), fetchJSON('data/rallies.json'), fetchJSON('data/picks.json', 2), fetchJSON('data/gone.json', 1)]);
+  const [base, libs, rallies, picks, gone] = await Promise.all([fetchJSON('data/bookstores.json', 3, isList), fetchJSON('data/libraries.json', 3, isList), fetchJSON('data/rallies.json', 3, Array.isArray), fetchJSON('data/picks.json', 2, (j) => !!j && Array.isArray(j.picks)), fetchJSON('data/gone.json', 1, Array.isArray)]);
   GONE = Array.isArray(gone) ? gone.filter((g) => g && typeof g.i === 'string' && typeof g.n === 'string') : []; // 外した店（v0.30.0）
   baseLoaded = Array.isArray(base) && base.length > 0; LIBS = Array.isArray(libs) ? libs : [];
   RALLIES = Array.isArray(rallies) ? rallies : [];
@@ -32,10 +43,10 @@ let GONE = [];
 // 管理画面（CSV）で足した店（v0.18.0。店番号 s＋番号）も重ねる。月1回、明晰が店のデータに書き写したら、ファイルの店のほうを使う
 // hide＝お店の希望で地図から外した店（v0.26.0）。閉店とちがい、記録には「閉店」と出さない
 // move＝場所を直した店（v0.36.6）：{ 店番号 → [緯度, 経度] }。ピンをその場所に動かす
-let FIX = { closed: new Set(), rename: new Map(), adds: [], hide: new Set(), move: new Map(), key: '' };
-export function setFixes(closed, rename, adds = [], hide = [], move = new Map()) {
-  const key = JSON.stringify([closed, [...rename], adds, hide, [...move]]); if (key === FIX.key) return false;
-  FIX = { closed: new Set(closed), rename, adds, hide: new Set(hide), move, key }; rebuild(); return true;
+let FIX = { closed: new Set(), rename: new Map(), adds: [], hide: new Set(), move: new Map(), pause: new Map(), type: new Map(), key: '' }; // pause：休業中の印・type：店の種類（v0.39.0・サーバー 1.16.0）
+export function setFixes(closed, rename, adds = [], hide = [], move = new Map(), pause = new Map(), type = new Map()) {
+  const key = JSON.stringify([closed, [...rename], adds, hide, [...move], [...pause], [...type]]); if (key === FIX.key) return false;
+  FIX = { closed: new Set(closed), rename, adds, hide: new Set(hide), move, pause, type, key }; rebuild(); return true;
 }
 // ---- 店のページ（v0.26.0・shops.js が渡す）：書店員さんの1冊（来る前はヒントだけ）・フェア・売場の写真・店の発信・スタンプの写真 ----
 let SHOPMAP = new Map(), PICURL = () => '';
@@ -74,7 +85,10 @@ export function rebuild(base) {
   const all = [DEMO_STORE, ...BASE, ...libs, ...adds, ...S.custom.map((c) => Object.assign({}, c, { custom: 1 }))].filter((s) => !S.hidden[s.i]);
   // 名前：この端末で直した名前 → 運営が直した名前（「名前を確認ずみ」）→ 地図データの名前
   const named0 = (s) => { const own = S.renames && S.renames[s.i]; const fx = FIX.rename.get(s.i); return own ? Object.assign({}, s, { n: own.n, fix: 1 }) : fx ? Object.assign({}, s, { n: fx, ov: 1 }) : s; };
-  const named = (s) => { const r = named0(s); const mv = FIX.move.get(s.i); return mv ? Object.assign({}, r, { la: mv[0], lo: mv[1], mv: 1 }) : r; }; // 運営が直した場所（v0.36.6）
+  const named1 = (s) => { const r = named0(s); const mv = FIX.move.get(s.i); return mv ? Object.assign({}, r, { la: mv[0], lo: mv[1], mv: 1 }) : r; }; // 運営が直した場所（v0.36.6）
+  // 運営が付けた休業中の印・直した種類（11/27・サーバー 1.16.0）。used＝古書店／both＝新刊も古書もある（ub）／book＝新刊の本屋／lib＝図書館
+  const named = (s) => { const r = named1(s); const pz = FIX.pause.get(s.i), ty = FIX.type.get(s.i); if (!pz && !ty) return r; const o = Object.assign({}, r); if (pz && !o.pz) o.pz = pz;
+    if (ty) { delete o.u; delete o.ub; if (o.t === 'l') delete o.t; if (ty === 'used') o.u = 1; else if (ty === 'both') { o.u = 1; o.ub = 1; } else if (ty === 'lib') o.t = 'l'; } return o; };
   // 店のページ（v0.26.0）：サーバーの書店員さんの1冊は、書名なし（来た人だけ shops.js openPick）。picks.json の1冊（見本）はそのまま
   for (const s of all) { const sh = SHOPMAP.get(s.i) || null; s.shop = sh; s.part = partOf(s); if (sh && sh.pick) s.rec = { who: sh.pick.who, title: '', author: '', hint: sh.pick.hint, genre: sh.pick.genre, srv: 1, v: sh.pick.v, photo: sh.pick.pics ? 'srv' : '' }; else if (s.rec && s.rec.srv) delete s.rec; }
   STORES = all.filter((s) => !FIX.closed.has(s.i) && !FIX.hide.has(s.i)).map(named);
@@ -161,8 +175,13 @@ export function stampLabel(n) {
 }
 const hsl = (h, s, l) => `hsl(${h} ${Math.max(0, Math.min(100, s))}% ${Math.max(0, Math.min(100, l))}%)`;
 export function stampInk(st) { const h = hash32(st.i); const [main, pic] = INKS[(h >>> 16) % INKS.length]; return { main, dark: '#1B1B1B', light: '#FFFFFF', pic }; }
+// 自分の本屋の看板（v0.39.0）：スタンプと同じ形で、柄・色・形を自分で選ぶ（shop.sign＝{ p: 柄, c: 色, sh: 形 }）
+export const SIGN_N = { p: PICTS.length, c: INKS.length, sh: 3 };
+export const shopInk = (shop) => { const [main, pic] = INKS[(shop && shop.sign && shop.sign.c) || 0] || INKS[0]; return { main, pic }; };
+// photo：看板に使う写真（v0.39.0・11/26 ぶっくまさん「本屋のアイコンは画像をアップロードできるようにしたい」。端末の中だけ）。あるときは柄の代わりに写真を形で切って出す
+export const signSVG = (shop, size = 72, sign = shop.sign, photo = shop.photo || '') => stampSVG({ i: 'myshop', n: String(shop.name || '').trim() || '自分の本屋', k: 99 }, true, size, { sign, photo, sfx: 'sg' + sign.p + sign.c + sign.sh + 's' + size + (photo ? 'p' + photo.length : ''), /* 大きさも名前に入れる（地図のピンと めぐり帳で同じ名前になると、隠れている側の切り抜きが使われて写真が四角く出た） */ nolabel: !String(shop.name || '').trim() }); // 名前がないとき（柄えらびの小さな見本）は帯を出さない
 export function stampSVG(st, collected, size = 96, opts = {}) {
-  const h = hash32(st.i); const shape = h % 3; const pict = PICTS[(h >>> 8) % PICTS.length]; const [main, picCol] = INKS[(h >>> 16) % INKS.length]; const r = rarityOf(st); const rank = opts.rank || 0;
+  const h = hash32(st.i); const sg = opts.sign || null; const shape = sg ? sg.sh % 3 : h % 3; const pict = PICTS[(sg ? sg.p : h >>> 8) % PICTS.length]; const [main, picCol] = INKS[(sg ? sg.c : h >>> 16) % INKS.length]; const r = rarityOf(st); const rank = opts.rank || 0;
   const id = 'k' + h.toString(36) + (collected ? 'c' : 'u') + (opts.sfx || '');
   const photo = opts.photo != null ? opts.photo : stampPhoto(st); // スタンプの写真（v0.26.0・店が送ったもの）。押す前は灰色でうすく
   const EDGE = '#1B1B1B'; const fill = collected ? main : '#ECE6DA', pic = collected ? picCol : '#BDB5A8', edge = collected ? EDGE : '#A69E91', nameCol = collected ? EDGE : '#A69E91';
@@ -171,7 +190,7 @@ export function stampSVG(st, collected, size = 96, opts = {}) {
   const fs = two ? Math.max(7.5, Math.min(10.5, 66 / Math.max(...lw))) : Math.max(8.4, Math.min(13, 66 / lw[0]));
   const FONT = `font-size="${+fs.toFixed(2)}" font-family="'Mochiy Pop P One','Zen Maru Gothic','Hiragino Sans',sans-serif" fill="${nameCol}"`;
   const squeeze = (w) => (w * fs > 68 ? ' textLength="66" lengthAdjust="spacingAndGlyphs"' : ''); // 帯からはみ出しそうなときだけ横に詰める
-  const label = two
+  const label = opts.nolabel ? '' : two
     ? `<rect x="13" y="58" width="74" height="29" rx="11" fill="#FFFFFF" stroke="${edge}" stroke-width="1.5"/><text x="50" y="65.6" text-anchor="middle" dominant-baseline="central" ${FONT}${squeeze(lw[0])}>${esc(lines[0])}</text><text x="50" y="79.4" text-anchor="middle" dominant-baseline="central" ${FONT}${squeeze(lw[1])}>${esc(lines[1])}</text>`
     : `<rect x="13" y="63" width="74" height="19" rx="9.5" fill="#FFFFFF" stroke="${edge}" stroke-width="1.5"/><text x="50" y="72.5" text-anchor="middle" dominant-baseline="central" ${FONT}${squeeze(lw[0])}>${esc(lines[0])}</text>`;
   // 秘境（★3）は檸檬の光の輪、街（★2）は白い二重のふち

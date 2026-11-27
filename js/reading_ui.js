@@ -2,16 +2,17 @@
 // 地図の大きなボタン「ここから読む」で時間を計りはじめ（本も読みかたも選ばない）、読み終えたら「しおりをはさむ」で止める（v0.14.4・名前は v0.24.0）。読んだ時間だけページが増える
 // v0.24.0（ぶっくまさん 11/18。mekuru との違いは「どこで」）：1km以上動いて読んだ記録は「移動読書」。しおりをはさんだあとは「どこで」を大きく。読み終えたら「1冊の旅」
 // アプリは閉じてよい（時刻で計る）。読んでいる本は、読書中のボタンを押したときに、えらびたい人だけえらぶ
-import { esc, icon, $, $$, fmtDate, fmtMin, fmtDist, todayISO, emit } from './util.js?v=0.37.9';
-import { READ } from './config.js?v=0.37.9';
-import { S, save } from './state.js?v=0.37.9';
-import { POS } from './position.js?v=0.37.9';
-import * as R from './reading.js?v=0.37.9';
-import { closeModal, toast, openModal, stopScan, scanIsbn, searchBook, confirmBox, dirLink, currentView } from './ui.js?v=0.37.9';
-import { BYID } from './data.js?v=0.37.9';
-import { tabiImage, shareBlob } from './share.js?v=0.37.9';
-import { noteShare } from './game.js?v=0.37.9';
-import { queueAct } from './events.js?v=0.37.9';
+import { esc, icon, $, $$, fmtDate, fmtMin, fmtDist, todayISO, emit, APPX, APPX_READ } from './util.js?v=0.39.0';
+import { READ } from './config.js?v=0.39.0';
+import { S, save } from './state.js?v=0.39.0';
+import { POS } from './position.js?v=0.39.0';
+import * as R from './reading.js?v=0.39.0';
+import { closeModal, toast, openModal, stopScan, scanIsbn, searchBook, confirmBox, dirLink, currentView } from './ui.js?v=0.39.0';
+import { BYID } from './data.js?v=0.39.0';
+import { tabiImage, shareBlob } from './share.js?v=0.39.0';
+import { noteShare } from './game.js?v=0.39.0';
+import { queueAct } from './events.js?v=0.39.0';
+import * as RC from './readcard.js?v=0.39.0';
 
 const cover = (b) => `<div class="rcover">${b.cover ? `<img src="${esc(b.cover)}" alt="" referrerpolicy="no-referrer" loading="lazy">` : icon('book')}</div>`;
 const hm = (t) => { const d = new Date(t); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -24,10 +25,31 @@ export function renderReadBtn() {
   if (tr && !tick) tick = setInterval(() => { if (document.visibilityState === 'visible') renderReadBtn(); }, 30000); else if (!tr && tick) { clearInterval(tick); tick = null; }
   if (POS.fake) { el.hidden = true; return; } // お試し歩きでは出さない
   el.hidden = false; const m = R.tripMin(tr); const nb = tr ? null : R.nextBook();
+  const mine = !tr && S.shop && R.atMyShop(); // 自分の本屋のそばでは「○○書店で読む」（v0.39.0）
   // 2行目：読んでいる本。えらんでいないときは「本をえらぶ ›」（v0.14.6：本をどこでえらぶのか、わかるように）
-  el.innerHTML = tr ? `<button class="rb-main" id="rb-main"><span class="rb-i">📖</span><span class="rb-t"><b>読書中</b><span class="rb-b${b ? '' : ' pick'}">${b ? `『${esc(b.title)}』 ›` : '本をえらぶ ›'}</span></span><span class="rb-s">${m < 1 ? 'はじめたところ' : fmtMin(m)}</span></button><button class="rb-end two" id="rb-end" aria-label="しおりをはさむ（読書をおえる）">しおりを<br>はさむ</button>` : `<button class="rb-go" id="rb-go"><span class="rb-i">📖</span><span class="rb-t${nb ? ' two' : ''}">ここから読む${nb ? `<small>『${esc(nb.title)}』のつづき</small>` : ''}</span></button>`;
-  if (tr) { $('#rb-main').onclick = openTrip; $('#rb-end').onclick = finishTrip; } else $('#rb-go').onclick = () => openReadStart();
+  el.innerHTML = tr ? `<button class="rb-main" id="rb-main"><span class="rb-i">📖</span><span class="rb-t"><b>読書中</b><span class="rb-b${b ? '' : ' pick'}">${b ? `『${esc(b.title)}』 ›` : '本をえらぶ ›'}</span></span><span class="rb-s">${m < 1 ? 'はじめたところ' : fmtMin(m)}</span></button><button class="rb-end two" id="rb-end" aria-label="しおりをはさむ（読書をおえる）">しおりを<br>はさむ</button>`
+    : mine ? `<button class="rb-go mine" id="rb-go"><span class="rb-i">📖</span><span class="rb-t two">${esc(S.shop.name)}で読む<small>自分の${S.shop.kind === 'l' ? '図書館' : '本屋'}のそばにいます</small></span></button>`
+    : `<button class="rb-go" id="rb-go"><span class="rb-i">📖</span><span class="rb-t${nb ? ' two' : ''}">ここから読む${nb ? `<small>『${esc(nb.title)}』のつづき</small>` : ''}</span></button>`;
+  if (tr) { $('#rb-main').onclick = openTrip; $('#rb-end').onclick = finishTrip; } else $('#rb-go').onclick = () => openReadStart(mine ? { mine: 1 } : {});
+  if (tr && tr.one) oneCheck();
 }
+// ---------- はじめての日の「1分だけ読む」（v0.39.0・11/26 ぶっくまさん。押すと、いつもの読書が始まる。本は選ばなくてよい） ----------
+// 1分たったら「第1章がはじまりました。このまま読んでも、しおりをはさんでも」と出す（音・振動なし）。アプリを閉じていたら、次に開いたときに
+let oneT = null;
+export function oneCheck() {
+  const tr = R.activeTrip(); clearTimeout(oneT); if (!tr || !tr.one || tr.oneMsg) return;
+  const left = tr.t + 60000 - Date.now(); if (left > 0) { oneT = setTimeout(oneCheck, left + 300); return; }
+  if (document.visibilityState !== 'visible') return;
+  if (busy()) { oneT = setTimeout(oneCheck, 3000); return; } // 画面の案内・はじめの設定などが閉じてから
+  tr.oneMsg = 1; save(); dockNote('📖 第1章がはじまりました', 'このまま読んでも、しおりをはさんでも。');
+}
+function dockNote(k, s) {
+  const dock = $('#bottom-dock'); if (!dock || currentView !== 'map') { toast(`${k}。${s}`, 'ok'); return; }
+  const old = $('#one-note'); if (old) old.remove();
+  const el = document.createElement('div'); el.id = 'one-note'; el.className = 'shiori-done one-note'; el.setAttribute('role', 'status'); el.innerHTML = `<div class="big st">${esc(k)}</div><div class="sub">${esc(s)}</div>`;
+  dock.insertBefore(el, dock.firstChild); const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 260); }; el.onclick = close; setTimeout(close, 9000);
+}
+export function startOne() { openReadStart({ one: 1 }); }
 // 「しおりをはさむ」：読んだ時間を記録して、ページを足す。12時間を過ぎていたら、いつまで読んだかを聞く（v0.23.0）
 export function finishTrip() {
   const tr = R.activeTrip(); if (tr && R.tripStale(tr)) { openForgot(tr); return; }
@@ -47,13 +69,17 @@ export function showShiori(r) {
     const pl = r.pl, t = r.book ? R.bookTrip(r.book) : null;
     const big = !pl ? `読書 <b>${fmtMin(r.min)}</b>` : pl.k === 'move' ? `移動読書 <b>${fmtDist(pl.m)}</b>` : pl.k === 'store' ? `<b>${esc(pl.n)}</b>のそばで` : 'その場で';
     const nth = t ? (pl && pl.k === 'move' ? `移動読書 ${t.move}回目` : `読書 ${t.n}回目`) : '';
-    el.innerHTML = `<div class="k">🔖 しおりをはさみました</div><div class="big${pl && pl.k === 'store' ? ' st' : ''}">${big}</div><div class="sub">${hm(r.t0)}〜${hm(r.t1)}・${fmtMin(r.min)}　+${r.pg}ページ</div>${r.title ? `<div class="tabi">『${esc(r.title)}』${nth ? `　${nth}` : ''}</div>` : ''}`;
+    const big2 = APPX && r.mine && S.shop ? `<b>${esc(S.shop.name)}</b>で` : r.one ? '第1章の、はじめのしおり' : big;
+    // 読書カード（v0.39.0）：今週の1列と今日のしおり（ひと月は めぐり帳で。11/26「かなり画面の幅をとる」）。自分の本屋を開いた人は営業カレンダー
+    const ym = r.d.slice(0, 7), n = Object.keys(RC.monthShiori(ym)).length;
+    el.innerHTML = `<div class="k">🔖 しおりをはさみました</div><div class="big${(pl && pl.k === 'store') || r.mine || r.one ? ' st' : ''}">${big2}</div><div class="sub">${hm(r.t0)}〜${hm(r.t1)}・${fmtMin(r.min)}　+${r.pg}ページ</div>${r.title ? `<div class="tabi">『${esc(r.title)}』${nth ? `　${nth}` : ''}</div>` : ''}
+      ${APPX_READ ? `<div class="sd-card"><div class="sd-ct">${APPX && S.shop ? '営業カレンダー' : '読書カード'}　<b>今月 しおり ${n}日</b></div>${RC.weekStrip(r.d, { pop: r.d })}</div>` : ''}`; // 読書カードはアプリ版だけ
   };
   draw(); dock.insertBefore(el, dock.firstChild);
   const close = () => { clearInterval(sdTimer); el.classList.add('out'); setTimeout(() => el.remove(), 260); };
   el.onclick = close;
   // しおりをはさんだ所の位置が、押したあとに届いたとき（reading.js の p1wait）は、届いた位置で書き直す
-  let n = 0; sdTimer = setInterval(() => { n++; if (r.pl !== pl0) { pl0 = r.pl; draw(); } if (n >= 8) close(); }, 1000);
+  let n = 0; sdTimer = setInterval(() => { n++; if (r.pl !== pl0) { pl0 = r.pl; draw(); } if (n >= 10) close(); }, 1000);
 }
 // ---------- 「しおりをはさむ」の押し忘れ（v0.23.0 テストプレイの声「終わるのを忘れてしまいます」） ----------
 // 読書をはじめて1時間を過ぎてからアプリを開くと「読書中のままでした」と出し、読んだ長さを、だいたいで選んでもらう。
@@ -86,9 +112,56 @@ export function openForgot(tr) {
   $('#fg-drop').onclick = () => { R.cancelTrip(); closeModal(); toast('読書をやめました（記録していません）'); };
 }
 // ---------- ここから読む：押すだけで始まる。はじめての時だけ、使い方を1回 ----------
-export function openReadStart({ book = '' } = {}) {
-  const go = () => { R.startTrip(book); closeModal(); const b = tripBook(R.activeTrip()); toast(b ? `📖『${b.title}』を、ここから読みます（本を変えるときは、読書中のボタンを押す）` : '📖 ここから読みます。読み終えたら「しおりをはさむ」を押してください', 'ok'); };
-  if (S.settings.readTip) { go(); return; }
+// ---------- アプリ版の「読書中」のお知らせ（Android・2026-11-25〜。設計書 §8） ----------
+// 読書の状態が変わるたびに、アプリの部品（window.__meguriNative.reading）に伝える。ブラウザ・iPhone（いまは）では部品がないので何もしない
+// お知らせの「しおりをはさむ」は、押した時刻をアプリの部品が覚えておき、ここで読書を終える（アプリを閉じていても、押した時刻で終わる）
+const NOTE = () => (window.__meguriNative && window.__meguriNative.reading) || null;
+const NOTE_ASKED = 'meguri_note_asked';
+let noteAsking = false, noteWarned = false;
+export async function syncReadingNote() {
+  const N = NOTE(); if (!N || noteAsking) return;
+  const tr = R.activeTrip();
+  try {
+    if (!tr || POS.fake) { await N.hide(); return; }
+    if (!(await N.can())) {
+      // 聞くのは、はじめて「ここから読む」を押した直後の1回だけ。断られても読書はいつもどおり使える
+      let asked = '1'; try { asked = localStorage.getItem(NOTE_ASKED); } catch (e) {}
+      if (asked || Date.now() - tr.t > 15000) return;
+      try { localStorage.setItem(NOTE_ASKED, '1'); } catch (e) {}
+      noteAsking = true; const yes = await askNote(); const ok = yes && (await N.ask()); noteAsking = false;
+      if (!ok || !R.activeTrip()) return;
+    }
+    const t = R.activeTrip(), b = tripBook(t); await N.show(t.t, b ? b.title : '');
+  } catch (e) {
+    noteAsking = false; console.warn('reading note', e);
+    // 出せなかった理由を1回だけ見せる（11/25 iPhone で出なかった。理由が分かるように）
+    if (!noteWarned && R.activeTrip()) { noteWarned = true; toast(`「読書中」の表示を出せませんでした（${String((e && (e.message || e.code)) || e).slice(0, 80)}）`, 'warn'); }
+  }
+}
+function askNote() {
+  return new Promise((res) => {
+    openModal(`<h2>📖 「読書中」をお知らせに出します</h2><p>「ここから読む」から「しおりをはさむ」までのあいだ、スマホの上のお知らせに「読書中」と、読んでいる時間を出します。お知らせから「しおりをはさむ」も押せます（アプリを閉じていても、押した時刻で記録します）。</p>
+      <p class="muted small">音も振動もありません。ロック画面では本の名前を出しません。このあと出るスマホの確認で「許可」を押してください。許可しなくても、読書はいつもどおり使えます。</p>
+      <div class="actions"><button class="btn primary" id="nt-yes">次へ</button><button class="btn ghost" id="nt-no">出さない</button></div>`);
+    $('#nt-yes').onclick = () => { closeModal(); res(true); };
+    $('#nt-no').onclick = () => { closeModal(); res(false); };
+  });
+}
+// お知らせで「しおりをはさむ」を押されたあと（アプリが前に出たとき・開いたとき）
+export async function takeNoteBookmark() {
+  const N = NOTE(); if (!N) return;
+  let at = 0; try { at = await N.take(); } catch (e) {}
+  const tr = R.activeTrip(); if (!at || !tr || at < tr.t) return;
+  const now = Date.now() - at < 60000; // アプリを開いていたあいだに押した → 読み終えた場所は、いまの場所。閉じていたあとなら、場所はわからないので残さない
+  const r = R.endTrip(at, false, now ? null : false, at - tr.t > R.STALE_MS);
+  if (r && r.min >= 1) showShiori(r); else toast('1分より短かったので、記録しませんでした');
+}
+// one＝はじめての日の「1分だけ読む」／mine＝自分の本屋で読む（v0.39.0）
+export function openReadStart({ book = '', one = 0, mine = 0 } = {}) {
+  const go = () => { R.startTrip(book, { one, mine }); closeModal(); const tr = R.activeTrip(); const b = tripBook(tr);
+    if (one) { toast('📖 1分だけ、開いてみましょう。1分たったら、お知らせします', 'ok'); oneCheck(); return; }
+    toast(b ? `📖『${b.title}』を、${tr && tr.mine && S.shop ? `${S.shop.name}で` : 'ここから'}読みます（本を変えるときは、読書中のボタンを押す）` : `📖 ${tr && tr.mine && S.shop ? `${S.shop.name}で` : 'ここから'}読みます。読み終えたら「しおりをはさむ」を押してください`, 'ok'); };
+  if (S.settings.readTip || one) { go(); return; } // 「1分読む」は、押すとすぐ始まる
   openModal(`<h2>ここから読む</h2><ul class="plain"><li>本を読む時間を計ります。電車やバスの中でも、カフェでも。耳で聞くのも</li><li>読み終えたら「<b>しおりをはさむ</b>」を押します。そこで読書がおわり、読んだ時間だけページが増えます（1分で1ページ）</li><li>はじめた所から1km以上はなれた所でしおりをはさむと「<b>移動読書</b>」になります</li><li>しおりをはさんだ所には、地図にしおりの印が残ります（この端末の中だけ）</li><li>読んでいる本は、読書中のボタンの「本をえらぶ」から（えらばなくても大丈夫です）</li><li>歩くあいだは、しまってください。アプリは閉じて大丈夫です</li><li>押し忘れても大丈夫です。1時間を過ぎてから開くと、読んだ長さを聞きます</li></ul>
     <div class="actions"><button class="btn primary wide" id="rs-go">📖 はじめる</button><button class="btn ghost wide" id="rs-close">やめる</button></div>`);
   $('#rs-close').onclick = closeModal; $('#rs-go').onclick = () => { S.settings.readTip = 1; save(); go(); };

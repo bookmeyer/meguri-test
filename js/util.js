@@ -1,5 +1,5 @@
 // 小さな道具
-import { PREFS } from './config.js?v=0.37.9';
+import { PREFS } from './config.js?v=0.39.0';
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
@@ -24,8 +24,20 @@ export const gmapDir = (st) => `https://www.google.com/maps/dir/?api=1&destinati
 // Googleマップでお店そのものを開く（営業時間・定休日を見るため。店名＋住所か県で探す。Google の情報を取り込むのではなく開くだけ）
 export const gmapPlace = (st) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([st.n, st.a || st.aa || prefOf(st)].filter(Boolean).join(' '))}`;
 export const stars = (r) => '★'.repeat(r) + '☆'.repeat(3 - r);
+// アプリ版（Android・iPhone のアプリ。Capacitor）の中で動いているか（v0.38.0・2026-11-25〜）。ブラウザ版では false
+// アプリ版は「ホーム画面のアイコンから開いている」のと同じ扱い（ホーム画面への追加のお願い・SNSの中の帯を出さない）
+export const NATIVE = !!(typeof window !== 'undefined' && window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+// 0.39.0 で足した機能を出すか（11/26 ぶっくまさん）
+//   APPX_READ＝1分読む・読書カード・読書の日数の称号：ブラウザ版にも出す予定（「ブラウザ版にあっていい。だけど反映するのはまだ」）。出すときに WEB_READ を true に
+//   APPX＝日記・自分の本屋（地図のピンも）：アプリ版だけ（WEB_DIARY_SHOP は false のまま）
+//   手元（localhost）だけ、localStorage の meguri_appx=1 でブラウザでも両方試せる
+const WEB_READ = false;
+const WEB_DIARY_SHOP = false;
+const LOCAL_TRY = (() => { try { return /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && localStorage.getItem('meguri_appx') === '1'; } catch (e) { return false; } })();
+export const APPX_READ = WEB_READ || NATIVE || LOCAL_TRY;
+export const APPX = WEB_DIARY_SHOP || NATIVE || LOCAL_TRY;
 // ホーム画面のアイコンから開いているか（iPhone は navigator.standalone）
-export const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+export const isStandalone = () => NATIVE || window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 // スマホの種類（ホーム画面への追加のしかたを出し分ける）。パソコンは ''
 export const mobileOS = () => { const ua = navigator.userAgent || ''; if (/iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'ios'; return /Android/.test(ua) ? 'android' : ''; };
 // SNSなどのアプリの中のブラウザなら、その名前（わからないアプリは 'app'）。ふつうのブラウザ・ホーム画面のアイコンなら ''（v0.28.0。v0.33.0 で start_ui.js から移した）
@@ -39,7 +51,11 @@ export function inAppName(ua = navigator.userAgent || '') {
   return '';
 }
 // どこで開いたか（v0.33.0）：app＝SNSなどのアプリの中／home＝ホーム画面のアイコン／web＝スマホのブラウザ／pc＝パソコン
-export const openedVia = () => (isStandalone() ? 'home' : inAppName() ? 'app' : mobileOS() ? 'web' : 'pc');
+// v0.38.0：and＝本めぐりの Android アプリ／ios＝本めぐりの iPhone アプリ（サーバー 1.15.0 から数える。前のサーバーは空として受ける）
+export const openedVia = () => (NATIVE ? (mobileOS() === 'ios' ? 'ios' : 'and') : isStandalone() ? 'home' : inAppName() ? 'app' : mobileOS() ? 'web' : 'pc');
+// v0.39.0（11/26 ぶっくまさん「ブラウザか、iPhoneか、androidか、なにでやってるかわかるとうれしい」）：ブラウザにもスマホの種類を付ける
+// webi・weba＝スマホのブラウザ（iPhone・Android）／homei・homea＝ホーム画面のアイコン／appi・appa＝SNSなどのアプリの中。アプリ版（ios・and）とパソコン（pc）はそのまま
+export const openedViaOS = () => { const v = openedVia(); if (!['web', 'home', 'app'].includes(v)) return v; const os = mobileOS(); return os === 'ios' ? v + 'i' : os === 'android' ? v + 'a' : v; };
 // 小さな出来事の配信（画面の部品どうしをゆるくつなぐ）
 const subs = new Map();
 export const on = (ev, fn) => { (subs.get(ev) || subs.set(ev, []).get(ev)).push(fn); return () => { const a = subs.get(ev); const i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); }; };

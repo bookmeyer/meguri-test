@@ -3,14 +3,15 @@
 // 記録（「書き出す」と同じ中身）をこの端末で暗号にして（AES-GCM。鍵はコードから作り、サーバーには送らない）、24時間だけサーバーに預ける
 // サーバーが知るのは、コードから作った見出し（SHA-256）と暗号だけ＝運営は中身を読めない。受け取ると、サーバーの中身は消える（1回だけ）
 // v0.28.0：預けた側は見出しを覚えておき、受け取られたら「記録は移した先にあります」の帯を出す（サーバー 1.9.4 の op:state。中身は返らない）
-import { APP_VER } from './config.js?v=0.37.9';
-import { $, esc } from './util.js?v=0.37.9';
-import { S, save, exportJSON, parseImport, replace } from './state.js?v=0.37.9';
-import { apiBase } from './events.js?v=0.37.9';
-import { rebuild, STORES } from './data.js?v=0.37.9';
-import * as MAP from './map.js?v=0.37.9';
-import { applyMapStates } from './map_ui.js?v=0.37.9';
-import { openModal, closeModal, toast, refreshHud } from './ui.js?v=0.37.9';
+import { APP_VER } from './config.js?v=0.39.0';
+import { $, esc, NATIVE, todayISO } from './util.js?v=0.39.0';
+import * as G from './game.js?v=0.39.0';
+import { S, save, exportJSON, parseImport, replace } from './state.js?v=0.39.0';
+import { apiBase } from './events.js?v=0.39.0';
+import { rebuild, STORES } from './data.js?v=0.39.0';
+import * as MAP from './map.js?v=0.39.0';
+import { applyMapStates } from './map_ui.js?v=0.39.0';
+import { openModal, closeModal, toast, refreshHud } from './ui.js?v=0.39.0';
 
 const ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 見まちがえやすい 0・O・1・I・L は使わない（31字×12＝約59ビット）
 const CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{12}$/;
@@ -64,6 +65,16 @@ export async function checkMoved() {
   } catch (e) {}
   return false;
 }
+// ---- アプリへの引っ越しのお礼（11/27 ぶっくまさん「お礼もつけます」）：アプリで、ブラウザ版の記録を受け取ったら1回だけ。from：書き出した所（'app'＝アプリから＝機種変更なのでお礼なし。前のブラウザ版は from を入れていないので、なし＝ブラウザ版とみなす） ----
+export const MOVE_PG = 100;
+export function moveReward(from) {
+  if (!NATIVE || from === 'app' || S.movedApp) return false;
+  S.movedApp = todayISO(); G.addPages(MOVE_PG); save(); refreshHud();
+  toast(`アプリへようこそ。引っ越しのお礼に、称号「アプリへお引っ越し」と +${MOVE_PG}ページをお届けしました`, 'ok');
+  return true;
+}
+const fromOf = (text) => { try { const j = JSON.parse(text); return typeof j.from === 'string' ? j.from : ''; } catch (e) { return ''; } };
+export { fromOf };
 // ---- コードで受け取る（新しい端末）。done：受け取ったあと／back：やめたとき ----
 export function openTakeCode(done, back) {
   openModal(`<h2>コードで受け取る</h2><p>前の端末で出した引き継ぎコード（12文字）を入れてください。</p>
@@ -79,9 +90,10 @@ export function openTakeCode(done, back) {
       const r = await call({ op: 'get', id: await idOf(code) });
       if (r.status === 404) throw new Error('none');
       if (!r.j || !r.j.ok) throw new Error((r.j && r.j.error) || 'net');
-      const d = parseImport(await unseal(code, r.j.data));
+      const raw = await unseal(code, r.j.data); const d = parseImport(raw);
       replace(d); for (const k of MOVE_KEYS) delete S.settings[k]; save(); /* 前の端末の「移した」印は持ってこない（v0.28.0） */ rebuild(); MAP.setStores(STORES); applyMapStates(); refreshHud(); closeModal();
       toast(`記録を受け取りました（スタンプ${Object.keys(S.stamps).length}）`, 'ok');
+      moveReward(fromOf(raw)); // アプリへの引っ越しのお礼（11/27）
       if (done) done();
     } catch (e) { b.disabled = false; b.textContent = '受け取る'; toast(e && e.name === 'OperationError' ? 'コードが合いませんでした' : why(e), 'warn'); }
   };

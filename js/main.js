@@ -1,36 +1,39 @@
 // 起動：記録を読み、データを取り、地図を出し、部品をつなぐ
-import { APP_VER, TRIAL_ON, POLICY_VER, MAP_CREDIT } from './config.js?v=0.37.9';
-import { $, on, $$, isStandalone, mobileOS, emit } from './util.js?v=0.37.9';
-import { load, S, save } from './state.js?v=0.37.9';
-import * as AUDIO from './audio.js?v=0.37.9';
-import { POS, setPos, setFollow, jumped } from './position.js?v=0.37.9';
-import { loadAll, STORES } from './data.js?v=0.37.9';
-import * as MAP from './map.js?v=0.37.9';
-import * as E from './events.js?v=0.37.9';
-import * as SH from './shops.js?v=0.37.9';
-import * as G from './game.js?v=0.37.9';
-import { renderShopChips } from './ui.js?v=0.37.9';
-import * as J from './journey.js?v=0.37.9';
-import * as R from './reading.js?v=0.37.9';
-import { toast, closeSheet, refreshHud, currentView, switchView, setSub, closeModal } from './ui.js?v=0.37.9';
-import { NEAR, openSheet, refreshSheet, applyMapStates, updateNear, showWantAlerts, updateAreaChip, setupSearch, watchDock, locate, setTrialUI, warp, goPrefHome, updateBubbles, jumpTo } from './map_ui.js?v=0.37.9';
-import * as RU from './reading_ui.js?v=0.37.9';
-import { renderRadar } from './radar_ui.js?v=0.37.9';
-import { renderZukan } from './zukan_ui.js?v=0.37.9';
-import { renderMissions, openEventStores } from './mission_ui.js?v=0.37.9';
-import { joinNotice, privacyNotice, policyNotice, renderSettings, applyTheme } from './settings_ui.js?v=0.37.9';
-import * as ST from './start_ui.js?v=0.37.9'; // はじめの画面・SNSの中の帯・ホーム画面に追加の声かけ・「移りました」の帯（v0.28.0）
-import { showOnboarding } from './onboard_ui.js?v=0.37.9';
-import * as UI0 from './ui.js?v=0.37.9'; // 試す入口（__honya）用
-import * as MU from './map_ui.js?v=0.37.9'; // 試す入口（__honya）用
-import * as CU from './checkin_ui.js?v=0.37.9'; // 試す入口（__honya）用
-import * as KU from './card_ui.js?v=0.37.9'; // 試す入口（__honya）用
-import * as SU from './settings_ui.js?v=0.37.9'; // 試す入口（__honya）用
-import * as RAD from './radar_ui.js?v=0.37.9'; // 試す入口（__honya）用
-import * as ZU from './zukan_ui.js?v=0.37.9'; // 試す入口（__honya）用
-import { startTour, autoTour } from './tour_ui.js?v=0.37.9';
-import { requireSetup, setupDone } from './setup_ui.js?v=0.37.9';
-import * as QZ from './quiz_ui.js?v=0.37.9'; // 9つの質問（v0.33.0）
+import { APP_VER, TRIAL_ON, POLICY_VER, MAP_CREDIT } from './config.js?v=0.39.0';
+import { $, on, $$, isStandalone, mobileOS, emit, NATIVE, APPX_READ } from './util.js?v=0.39.0';
+import { load, S, save } from './state.js?v=0.39.0';
+import * as AUDIO from './audio.js?v=0.39.0';
+import { POS, setPos, setFollow, jumped } from './position.js?v=0.39.0';
+import { loadAll, STORES } from './data.js?v=0.39.0';
+import * as MAP from './map.js?v=0.39.0';
+import * as E from './events.js?v=0.39.0';
+import * as SH from './shops.js?v=0.39.0';
+import * as G from './game.js?v=0.39.0';
+import { renderShopChips } from './ui.js?v=0.39.0';
+import * as J from './journey.js?v=0.39.0';
+import * as R from './reading.js?v=0.39.0';
+import { toast, closeSheet, refreshHud, currentView, switchView, setSub, closeModal } from './ui.js?v=0.39.0';
+import { NEAR, openSheet, refreshSheet, applyMapStates, updateNear, showWantAlerts, updateAreaChip, setupSearch, watchDock, locate, setTrialUI, warp, goPrefHome, updateBubbles, jumpTo } from './map_ui.js?v=0.39.0';
+import * as RU from './reading_ui.js?v=0.39.0';
+import { renderRadar } from './radar_ui.js?v=0.39.0';
+import { renderZukan } from './zukan_ui.js?v=0.39.0';
+import { renderMissions, openEventStores } from './mission_ui.js?v=0.39.0';
+import { joinNotice, privacyNotice, policyNotice, renderSettings, applyTheme } from './settings_ui.js?v=0.39.0';
+import * as ST from './start_ui.js?v=0.39.0'; // はじめの画面・SNSの中の帯・ホーム画面に追加の声かけ・「移りました」の帯（v0.28.0）
+import { showOnboarding } from './onboard_ui.js?v=0.39.0';
+import * as UI0 from './ui.js?v=0.39.0'; // 試す入口（__honya）用
+import * as MU from './map_ui.js?v=0.39.0'; // 試す入口（__honya）用
+import * as CU from './checkin_ui.js?v=0.39.0'; // 試す入口（__honya）用
+import * as KU from './card_ui.js?v=0.39.0'; // 試す入口（__honya）用
+import * as SU from './settings_ui.js?v=0.39.0'; // 試す入口（__honya）用
+import * as RAD from './radar_ui.js?v=0.39.0'; // 試す入口（__honya）用
+import * as ZU from './zukan_ui.js?v=0.39.0'; // 試す入口（__honya）用
+import { startTour, autoTour } from './tour_ui.js?v=0.39.0';
+import { requireSetup, setupDone } from './setup_ui.js?v=0.39.0';
+import * as QZ from './quiz_ui.js?v=0.39.0'; // 9つの質問（v0.33.0）
+import * as MSH from './myshop.js?v=0.39.0'; // 自分の本屋（v0.39.0）
+import * as MSU from './myshop_ui.js?v=0.39.0';
+import * as RC from './readcard.js?v=0.39.0'; // 読書カード（v0.39.0）
 
 async function boot() {
   if (ST.lineEscape()) return; ST.stripLineMark(); // LINE の中なら、Safari／Chrome で開き直してもらう（v0.28.0）
@@ -45,7 +48,7 @@ async function boot() {
     onDrag: () => { setFollow(false); $('#btn-locate').classList.remove('on'); },
     onLongPress: (ll) => { if (POS.fake) return; ST.hideBand('addhere'); ST.showBand('addhere', 'ここに、地図にない本屋がありますか？', [['知らせる', () => { ST.hideBand('addhere'); MU.startAdd({ lat: ll.lat, lng: ll.lng }); }]], 'add'); setTimeout(() => ST.hideBand('addhere'), 8000); } }); // 地図の長押し（v0.31.0）
   on('map-ready', () => { MAP.setStores(STORES); applyMapStates(); MAP.setMe(POS); MAP.setReads(R.readSpots()); if (S.settings.avatar) MAP.setAvatar(S.settings.avatar); });
-  on('pos', () => { MAP.setMe(POS); if (POS.follow && !POS.fake) MAP.easeTo(POS.lon, POS.lat); updateNear(); J.track(POS, jumped()); showWantAlerts(J.checkWanted(POS)); refreshHud(); });
+  on('pos', () => { MAP.setMe(POS); if (POS.follow && !POS.fake) MAP.easeTo(POS.lon, POS.lat); updateNear({ pos: true }); J.track(POS, jumped()); showWantAlerts(J.checkWanted(POS)); refreshHud(); });
   on('volume', (v) => { toast(`📖 歩いたページで、第${v.after}巻に入りました`, 'ok'); refreshHud(); }); // 押していないときは鳴らさない（v0.23.0 テストプレイの声「マナーモードでも勝手に鳴る」）
   let areaBound = false; on('map-ready', () => { if (!areaBound) { areaBound = true; MAP.M.map.on('moveend', updateAreaChip); MAP.M.map.on('moveend', updateBubbles); } updateAreaChip(); updateBubbles(); }); // 吹き出し（v0.27.0）
   on('records', () => { refreshHud(); updateAreaChip(); RU.renderReadBtn(); MAP.setReads(R.readSpots()); if (currentView === 'zukan') renderZukan(); if (currentView === 'mission') renderMissions(); });
@@ -57,6 +60,17 @@ async function boot() {
   // 読書（v0.14.1）：地図の大きなボタン「ここから読む」／読書中。スタンプのあと・カードのあとからも同じ画面へ
   on('read-start', (x) => RU.openReadStart(x || {}));
   on('trip', RU.renderReadBtn); on('trial', RU.renderReadBtn);
+  // 自分の本屋（v0.39.0）：段が上がったらお知らせ（音なし）と物語に1行・地図のピン（自分の地図にだけ）・そばでは地図のボタンが「○○書店で読む」
+  on('records', () => { const up = MSH.checkStage(); if (up) MSU.notifyStage(up); MSU.syncShopPin(); });
+  on('myshop', () => { MSU.syncShopPin(); RU.renderReadBtn(); if (currentView === 'zukan') renderZukan(); });
+  on('map-ready', () => MSU.syncShopPin());
+  let atShop = false; on('pos', () => { const a = !!(S.shop && R.atMyShop()); if (a !== atShop) { atShop = a; RU.renderReadBtn(); } });
+  on('replaced', () => setTimeout(() => MSU.syncShopPin(), 0));
+  if (NATIVE) { // アプリ版の「読書中」のお知らせ（Android・2026-11-25〜）：読書の状態をアプリの部品に伝える／お知らせの「しおりをはさむ」を受け取る
+    on('trip', RU.syncReadingNote); on('trial', RU.syncReadingNote);
+    const N = window.__meguriNative && window.__meguriNative.reading;
+    if (N) { N.onBookmark = RU.takeNoteBookmark; setTimeout(() => { RU.takeNoteBookmark().finally(RU.syncReadingNote); }, 1500); }
+  }
   on('fit-reads', (pts) => { setFollow(false); $('#btn-locate').classList.remove('on'); switchView('map'); setTimeout(() => MAP.fitPoints(pts), 80); }); // 1冊の旅の「地図で見る」（v0.24.0）
   // イベント：起動時・10分ごと・画面に戻ったとき（5分以上たっていたら）に設定を読む。記録はつながったときに送る
   on('events', () => { applyMapStates(); refreshHud(); refreshSheet(); if (currentView === 'mission') renderMissions(); }); // 店のページも（手書きのカードがある店が届く。v0.16.1）
@@ -83,8 +97,10 @@ async function boot() {
   if (!res.ok) toast('店のデータが読み込めませんでした。つながったら、もう一度開いてください', 'warn');
   // シートを下に引いて閉じる
   let sy = null; const sheet = $('#sheet'); sheet.addEventListener('touchstart', (e) => { sy = e.touches[0].clientY; }, { passive: true }); sheet.addEventListener('touchmove', (e) => { if (sy != null && sheet.scrollTop === 0 && e.touches[0].clientY - sy > 70) { closeSheet(); sy = null; } }, { passive: true });
-  // 更新の案内（サービスワーカー）
-  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  // アプリ版だけの部品（リンクの開き方・シェア・戻るボタン・記録の守りなど。アプリのフォルダの src/native_app.js。ブラウザ版には置かない）
+  if (NATIVE) import('./native_app.js').catch((e) => console.warn('native_app', e));
+  // 更新の案内（サービスワーカー）。アプリ版は中身がアプリに入っているので使わない（v0.38.0）
+  if (!NATIVE && 'serviceWorker' in navigator && location.protocol === 'https:') {
     // 更新の流れ：新しい sw.js が入った（待機中）→ 帯を出す → 「更新」で待機中のものを有効に → 入れ替わったら読み直す
     const hadCtl = !!navigator.serviceWorker.controller; let wantReload = false, reloading = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => { if ((!hadCtl && !wantReload) || reloading) return; reloading = true; location.reload(); });
@@ -131,6 +147,19 @@ async function boot() {
   }
   emit('view', 'map');
   setTimeout(() => RU.checkForgot(), 2500); // 読書の「しおりをはさむ」の押し忘れ（v0.23.0）：ほかの窓が閉じてから
+  // v0.39.0：「1分読む」を「あとで」にした人に、次に開いたとき一度だけ小さく（お知らせは送らない）／月はじめに、先月の読書カード（営業カレンダー）
+  const oneLater0 = S.settings.oneLater; // この前に開いたときに「あとで」を押した人だけ（今回押した人には、今回は出さない）
+  const nudges = (tries = 0) => {
+    if (!S.seen || POS.fake) return;
+    if ($('#setup') || $('#pfask') || !$('#onboard').hidden || !$('#modal').hidden || $('#tour')) { if (tries < 24) setTimeout(() => nudges(tries + 1), 5000); return; } // ほかの画面が出ているあいだは待つ
+    if (!APPX_READ) return; // 1分読む・読書カード（ブラウザ版は、出すと決めるまで出さない）
+    if (oneLater0 && !S.settings.oneNudge && !RC.hasShiori() && !S.trip) { S.settings.oneNudge = 1; save(); ST.showBand('one', '第1章は、まだ白紙です。1分読むと、はじまります', [['1分読む', () => { ST.hideBand('one'); RU.startOne(); }]], 'book'); return; }
+    const cur = RC.thisMonth(); if (S.settings.rcNote === cur) return;
+    const prev = RC.prevMonth(cur); const had = Object.keys(RC.monthShiori(prev)).length > 0; S.settings.rcNote = cur; save();
+    if (had) ST.showBand('rcard', `${+prev.slice(5)}月の${S.shop ? '営業カレンダー' : '読書カード'}ができました`, [['見る', () => { ST.hideBand('rcard'); RC.showMonth(prev); if (S.shop) MSU.goShop(); else { switchView('zukan'); setSub('log'); } }]], 'book');
+  };
+  setTimeout(nudges, 6000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') RU.oneCheck(); }); // 1分たったお知らせ（閉じていたあいだに1分たったとき）
   // 試す入口（テストで使う）。v0.16.0 でファイルを分けたので、いくつかをまとめて見せる。S と STORES は入れかわるので、いつも今のものを返す
   const live = (...ms) => new Proxy({}, { get: (_, k) => { const x = ms.find((n) => k in n); return x ? x[k] : undefined; } });
   window.__honya = { get S() { return S; }, POS, get STORES() { return STORES; }, UI: live(UI0, MU, CU, KU, SU, ST), MAP, J: live(J, R), JU: live(MU, RAD, ZU, SU), RU, E, audio: AUDIO, ver: APP_VER };

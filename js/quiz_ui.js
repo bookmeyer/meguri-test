@@ -4,12 +4,14 @@
 // ・「あとで」の人には、最初のスタンプを押した日の次の日以降に開いたとき（スタンプがなくても、開いた日が3日目になったとき）、答えるまで進めない画面を出す
 // ・お店の近く（射程の中）で開いたときは出さない（出先で入れる手間をかけない）。お店から離れて開いたときに出す
 // 9問の中身・答えのコードは、これまでと同じ（config.js の PROFILE_Q。前に集まった答えとそのまま合わせて数えられる）
-import { PROFILE_Q, PREFS } from './config.js?v=0.37.9';
-import { $, esc, todayISO } from './util.js?v=0.37.9';
-import { S, save } from './state.js?v=0.37.9';
-import * as E from './events.js?v=0.37.9';
-import { toast } from './ui.js?v=0.37.9';
-import { profileComplete, STAT_P } from './profile_ui.js?v=0.37.9';
+import { PROFILE_Q, PREFS } from './config.js?v=0.39.0';
+import { $, esc, todayISO, emit, APPX_READ } from './util.js?v=0.39.0';
+import { hasShiori } from './readcard.js?v=0.39.0';
+import { POS } from './position.js?v=0.39.0';
+import { S, save } from './state.js?v=0.39.0';
+import * as E from './events.js?v=0.39.0';
+import { toast } from './ui.js?v=0.39.0';
+import { profileComplete, STAT_P } from './profile_ui.js?v=0.39.0';
 
 // 都道府県は、地方を押してから県を押す（47の長い一覧から探さなくてよいように）。PREFS は JIS の順（0＝北海道）
 const REGIONS = [['北海道・東北', 0, 6], ['関東', 7, 13], ['中部', 14, 22], ['近畿', 23, 29], ['中国・四国', 30, 38], ['九州・沖縄', 39, 46]];
@@ -74,6 +76,22 @@ export function showProfileAsk({ mandatory = false, onDone, onLater } = {}) {
   document.body.appendChild(box); draw();
 }
 
+// ---- 9つの質問とプロローグのあとに1枚：「1分読むと、第1章がはじまります」（v0.39.0・11/26 ぶっくまさん。読書を使う人を増やす） ----
+// まだ一度も読書の記録がない人だけ。「第1章をはじめる」で、いつもの読書が始まる（本は選ばなくてよい）。「あとで」の人には、次に開いたときに一度だけ小さく（main.js）
+const offerOne = () => APPX_READ && !hasShiori() && !S.trip && !POS.fake; // アプリ版だけ（11/26「ブラウザはそのまま」）
+const ART_ONE = `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="88" fill="#FBEFD6" stroke="#1B1B1B" stroke-width="2.5"/><path d="M40 70q30-14 60 0v76q-30-14-60 0z" fill="#FFFFFF" stroke="#1B1B1B" stroke-width="2.5" stroke-linejoin="round"/><path d="M100 70q30-14 60 0v76q-30-14-60 0z" fill="#FFFFFF" stroke="#1B1B1B" stroke-width="2.5" stroke-linejoin="round"/>${[86, 100, 114].map((y) => `<path d="M52 ${y}q18-6 36 0M112 ${y}q18-6 36 0" stroke="#D9CDB4" stroke-width="4" stroke-linecap="round" fill="none"/>`).join('')}<path d="M128 62h16v40l-8-7-8 7z" fill="#FF7AB6" stroke="#1B1B1B" stroke-width="2.5" stroke-linejoin="round"/><circle cx="150" cy="148" r="22" fill="#FFD447" stroke="#1B1B1B" stroke-width="2.5"/><path d="M150 136v12l8 5" fill="none" stroke="#1B1B1B" stroke-width="3" stroke-linecap="round"/></svg>`;
+function oneCard(box, onDone) {
+  box.innerHTML = `<div class="onboard-box qz-box qz-one">
+    <div class="ob-catch"><b>第1章のまえに</b>手元の本を1分だけ</div>
+    <div class="art gate-art">${ART_ONE}</div>
+    <h2 class="gate-h">1分読むと、第1章がはじまります</h2>
+    <p>プロローグができました。つづきは、あなたが読むところから。いま手元にある本を、1分だけ開いてみませんか</p>
+    <p class="muted small">電子書籍でも、図書館の本でも。なければ「あとで」</p>
+    <div class="actions gate-actions"><button class="btn primary wide" id="qz-one">第1章をはじめる（1分読む）</button><button class="btn ghost wide" id="qz-one-later">あとで</button></div>
+  </div>`;
+  $('#qz-one').onclick = () => { box.remove(); if (onDone) onDone(); setTimeout(() => emit('read-start', { one: 1 }), 600); };
+  $('#qz-one-later').onclick = () => { S.settings.oneLater = todayISO(); save(); box.remove(); if (onDone) onDone(); };
+}
 // ---- 1画面1問 ----
 function openQuiz(box, { mandatory, onBack, onDone }) {
   const a = JSON.parse(JSON.stringify((S.profile && S.profile.a) || {})); // 前に答えたものがあれば、選んだ状態から
@@ -135,7 +153,7 @@ function openQuiz(box, { mandatory, onBack, onDone }) {
       <p class="muted small qz-pro-note">めぐり帳の「物語」の、いちばん最初に入りました。</p>
       <div class="actions gate-actions"><button class="btn primary wide" id="qz-start">物語を始める</button></div>
     </div>`;
-    $('#qz-start').onclick = () => { if (onDone) onDone(); };
+    $('#qz-start').onclick = () => { if (offerOne()) oneCard(box, onDone); else if (onDone) onDone(); };
   };
   draw();
 }
