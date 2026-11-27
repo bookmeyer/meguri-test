@@ -2,13 +2,13 @@
 // しおりの柄で読んだ場所がわかる：本屋・図書館のそば＝その店の色／移動読書＝電車の柄／自分の本屋＝自分の看板の色／そのほか＝ふつうの柄（その日にいちばん長く読んだ読書で決める）
 // 記録は端末の中だけ。月の画像には場所と書名を出さない。読書カードのしおりは、本屋のスタンプの数・称号・管理画面のスタンプには入れない
 // 見せる順（④）：はじめて1分読んでしおりが入るまでは出さない。自分の本屋を開いた人には、自分の本屋の「営業カレンダー」として出す（めぐり帳の「自分の本屋」）
-import { esc, todayISO, monthKey, $, APPX } from './util.js?v=0.39.0'
+import { esc, todayISO, monthKey, $, APPX } from './util.js?v=0.39.1'
 const shopOn = () => APPX && !!S.shop; // 自分の本屋（営業カレンダー）はアプリ版だけ;
-import { toast } from './ui.js?v=0.39.0';
-import { readCardImage, shareBlob } from './share.js?v=0.39.0';
-import { S, save } from './state.js?v=0.39.0';
-import { BYID, stampInk, shopInk } from './data.js?v=0.39.0';
-import { countAct } from './events.js?v=0.39.0';
+import { toast } from './ui.js?v=0.39.1';
+import { readCardImage, shareBlob } from './share.js?v=0.39.1';
+import { S, save } from './state.js?v=0.39.1';
+import { BYID, stampInk, shopInk } from './data.js?v=0.39.1';
+import { countAct } from './events.js?v=0.39.1';
 
 const PLAIN = '#FF7AB6';
 export const hasShiori = () => (S.reads || []).some((r) => r && !r.off && r.min >= 1) || (S.trips || []).some((g) => g && g.read);

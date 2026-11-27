@@ -1,24 +1,24 @@
 // めぐり帳（view-zukan）：スタンプ・本・物語・月のふり返り・県
-import { pagesForVol, frameOf, PREFS } from './config.js?v=0.39.0';
-import { esc, icon, $, todayISO, $$, fmtDate, prefOf, fmtMin, APPX, APPX_READ } from './util.js?v=0.39.0';
-import { S, save } from './state.js?v=0.39.0';
-import { BYID, rarityOf, STORES, stampSVG } from './data.js?v=0.39.0';
-import * as G from './game.js?v=0.39.0';
-import * as E from './events.js?v=0.39.0';
-import { storyImage, shareBlob, profileImage } from './share.js?v=0.39.0';
-import * as J from './journey.js?v=0.39.0';
-import * as R from './reading.js?v=0.39.0';
-import { toast, openModal, closeModal, currentSub, emptyBox } from './ui.js?v=0.39.0';
-import { openSheet, startAdd } from './map_ui.js?v=0.39.0';
-import { openCard } from './card_ui.js?v=0.39.0';
-import { renderReading } from './reading_ui.js?v=0.39.0';
-import { nameModal } from './settings_ui.js?v=0.39.0';
-import { profileComplete } from './profile_ui.js?v=0.39.0';
-import { prologueHTML } from './quiz_ui.js?v=0.39.0'; // 物語のプロローグ（v0.33.0）
-import { openTitles } from './titles_ui.js?v=0.39.0'; // 称号の一覧（v0.33.2）
-import { diaryHTML, diaryTeaser, openDiary, pickDayDiary } from './diary.js?v=0.39.0'; // 日記（v0.39.0）
-import { renderCardBox } from './readcard.js?v=0.39.0'; // 読書カード（v0.39.0）
-import { renderShopTab } from './myshop_ui.js?v=0.39.0'; // 自分の本屋（v0.39.0）
+import { pagesForVol, frameOf, PREFS } from './config.js?v=0.39.1';
+import { esc, icon, $, todayISO, $$, fmtDate, prefOf, fmtMin, APPX, APPX_READ } from './util.js?v=0.39.1';
+import { S, save } from './state.js?v=0.39.1';
+import { BYID, rarityOf, STORES, stampSVG } from './data.js?v=0.39.1';
+import * as G from './game.js?v=0.39.1';
+import * as E from './events.js?v=0.39.1';
+import { storyImage, shareBlob, profileImage } from './share.js?v=0.39.1';
+import * as J from './journey.js?v=0.39.1';
+import * as R from './reading.js?v=0.39.1';
+import { toast, openModal, closeModal, currentSub, emptyBox } from './ui.js?v=0.39.1';
+import { openSheet, startAdd } from './map_ui.js?v=0.39.1';
+import { openCard } from './card_ui.js?v=0.39.1';
+import { renderReading } from './reading_ui.js?v=0.39.1';
+import { nameModal } from './settings_ui.js?v=0.39.1';
+import { profileComplete } from './profile_ui.js?v=0.39.1';
+import { prologueHTML } from './quiz_ui.js?v=0.39.1'; // 物語のプロローグ（v0.33.0）
+import { openTitles } from './titles_ui.js?v=0.39.1'; // 称号の一覧（v0.33.2）
+import { diaryHTML, diaryTeaser, openDiary, pickDayDiary } from './diary.js?v=0.39.1'; // 日記（v0.39.0）
+import { renderCardBox } from './readcard.js?v=0.39.1'; // 読書カード（v0.39.0）
+import { renderShopTab } from './myshop_ui.js?v=0.39.1'; // 自分の本屋（v0.39.0）
 
 // ---------- 今日の物語 ----------
 function chapterHTML(ch, today = false) {

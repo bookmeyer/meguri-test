@@ -2,10 +2,10 @@
 // 開店：名前と看板（スタンプの柄・色）を選ぶ。本屋か図書館かも選べる。場所は選べる（地図にピンで置く・選ばなくてもよい。端末の中だけ・サーバーに送らない・シェアの画像に出さない・移転できる）
 // 棚：「本屋で出会った本」（めぐり帳のカード）と「自分で足した本」。お店の段は本屋で出会った本の数だけで決まる（自分で足した本は数えない）
 // 常連度には入れない。「営業○日」＝自分の本屋で読んだ日。2階建ての2階「読書のへや」は、自分の本屋で読んだ時間で明かりがつく。画面は myshop_ui.js
-import { SHOP_STAGES, SHOP_ROOM_LIGHTS } from './config.js?v=0.39.0';
-import { todayISO, emit } from './util.js?v=0.39.0';
-import { S, save } from './state.js?v=0.39.0';
-import { countAct } from './events.js?v=0.39.0';
+import { SHOP_STAGES, SHOP_ROOM_LIGHTS } from './config.js?v=0.39.1';
+import { todayISO, emit } from './util.js?v=0.39.1';
+import { S, save } from './state.js?v=0.39.1';
+import { countAct } from './events.js?v=0.39.1';
 
 export const canOpen = () => (S.cards || []).length > 0; // 本屋で1冊と出会うと開店できる（④）
 export const metCount = () => (S.cards || []).length;

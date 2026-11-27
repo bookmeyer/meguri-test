@@ -2,11 +2,11 @@
 // めぐり帳の「物語」で、その日の章の下に「この日のこと」を書ける・直せる。前の日にも、スタンプも読書もない日にも書ける（書いた日は物語の章になる。journey.js の activeDates）
 // 1日2,000字まで。保存はこの端末の中だけ（S.diary。運営には送らない。送るのは「日記を書いた日」の回数だけ）。書き出し・読み込み・引き継ぎコードに入る
 // あとで本の形に書き出せるように、日付ごとに分けて残す（{ 'YYYY-MM-DD': { s: 文, t: 書いた時刻 } }）。作らないもの：本の形の書き出し・注文、日記を人に見せる場所
-import { DIARY_MAX } from './config.js?v=0.39.0';
-import { esc, $, todayISO, emit } from './util.js?v=0.39.0';
-import { S, save } from './state.js?v=0.39.0';
-import { openModal, closeModal, toast, confirmBox } from './ui.js?v=0.39.0';
-import { countAct } from './events.js?v=0.39.0';
+import { DIARY_MAX } from './config.js?v=0.39.1';
+import { esc, $, todayISO, emit } from './util.js?v=0.39.1';
+import { S, save } from './state.js?v=0.39.1';
+import { openModal, closeModal, toast, confirmBox } from './ui.js?v=0.39.1';
+import { countAct } from './events.js?v=0.39.1';
 
 const WD = '日月火水木金土';
 export const dayLabel = (d) => { const [y, m, dd] = d.split('-').map(Number); return `${y}年${m}月${dd}日（${WD[new Date(y, m - 1, dd).getDay()]}）`; };

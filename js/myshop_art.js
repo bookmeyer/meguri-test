@@ -1,6 +1,6 @@
 // 自分の本屋の絵（v0.39.0）：段ごとのお店の絵（本屋6段・図書館4段）。地図のピンにも同じ絵を使う（お店が育つとピンも育つ）
 // ひと箱（1〜4冊）のあいだは、1冊増えるごとに箱の中の本が1冊ずつ増える（④）。2階建ての2階「読書のへや」は明かりの数（0〜4）
-import { esc } from './util.js?v=0.39.0';
+import { esc } from './util.js?v=0.39.1';
 
 const E = '#1B1B1B', WALL = '#FFF3D6', WOOD = '#F2B57A', GLASS = '#DDEEFF', LEAF = '#4FC07A', LIT = '#FFD447', DARK = '#5B6B85';
 const BOOKC = ['#FF6A48', '#2F9BFF', '#4FC07A', '#FFD447', '#A86CFF', '#FF7AB6'];

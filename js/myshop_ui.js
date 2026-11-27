@@ -1,17 +1,17 @@
 // 自分の本屋の画面（v0.39.0）：めぐり帳の「自分の本屋」・開店／看板と名前・場所（地図で選ぶ）・地図のピンとカード・棚・店主の1冊・段が上がったお知らせ（貸した本は 11/26 にやめた）
 // 見せる順（④）：本屋で1冊と出会うまでは「本屋で1冊と出会うと、開店できます」だけ。「開店しませんか」は、はじめて本屋のそばで本を登録したときに出す（card_ui.js の cardDone）
-import { SHOP_PICK_STAGE, SHOP_ROOM_STAGE, SHOP_ROOM_LIGHTS } from './config.js?v=0.39.0';
-import { esc, $, $$, todayISO, emit, fmtDate, fmtMin, hash32, APPX } from './util.js?v=0.39.0';
-import { S, save } from './state.js?v=0.39.0';
-import { BYID, stampInk, shopInk, signSVG, SIGN_N } from './data.js?v=0.39.0';
-import * as MS from './myshop.js?v=0.39.0';
-import { shopArt } from './myshop_art.js?v=0.39.0';
-import { renderCardBox } from './readcard.js?v=0.39.0';
-import * as R from './reading.js?v=0.39.0';
-import { openModal, closeModal, toast, confirmBox, searchBook, scanIsbn, stopScan, switchView, setSub, currentView } from './ui.js?v=0.39.0';
-import { POS } from './position.js?v=0.39.0';
-import * as MAP from './map.js?v=0.39.0';
-import { openCard } from './card_ui.js?v=0.39.0';
+import { SHOP_PICK_STAGE, SHOP_ROOM_STAGE, SHOP_ROOM_LIGHTS } from './config.js?v=0.39.1';
+import { esc, $, $$, todayISO, emit, fmtDate, fmtMin, hash32, APPX } from './util.js?v=0.39.1';
+import { S, save } from './state.js?v=0.39.1';
+import { BYID, stampInk, shopInk, signSVG, SIGN_N } from './data.js?v=0.39.1';
+import * as MS from './myshop.js?v=0.39.1';
+import { shopArt } from './myshop_art.js?v=0.39.1';
+import { renderCardBox } from './readcard.js?v=0.39.1';
+import * as R from './reading.js?v=0.39.1';
+import { openModal, closeModal, toast, confirmBox, searchBook, scanIsbn, stopScan, switchView, setSub, currentView } from './ui.js?v=0.39.1';
+import { POS } from './position.js?v=0.39.1';
+import * as MAP from './map.js?v=0.39.1';
+import { openCard } from './card_ui.js?v=0.39.1';
 
 const artOf = (shop = S.shop) => { const st = MS.stageInfo(shop); const books = (S.cards || []).slice(-4).map((c) => stampInk(BYID.get(c.s) || { i: c.s }).main); return shopArt(shop, st.i, { main: shopInk(shop).main, n: st.n, books, lights: MS.roomLights() }); };
 const openText = (shop = S.shop) => { const d = MS.openDays(shop); return d ? `開店から${d}日` : '今日開店'; };
