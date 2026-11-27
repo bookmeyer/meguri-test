@@ -39,7 +39,7 @@ function applyFixes(f) {
   // 管理画面で足した店（v0.18.0）：店番号は s＋番号・名前・場所（日本のなか）・住所・県・古書店（u）・図書館（t）
   const inJP = (la, lo) => typeof la === 'number' && typeof lo === 'number' && la >= 20 && la <= 46.5 && lo >= 122 && lo <= 154.5;
   const adds = ok && Array.isArray(f.add) ? f.add.filter((s) => s && typeof s.i === 'string' && /^s\d{1,9}$/.test(s.i) && typeof s.n === 'string' && s.n.trim() && inJP(s.la, s.lo)).slice(0, 5000)
-    .map((s) => Object.assign({ i: s.i, n: s.n.trim().slice(0, 80), la: s.la, lo: s.lo, srv: 1 }, typeof s.a === 'string' ? { a: s.a.slice(0, 200) } : {}, typeof s.p === 'string' ? { p: s.p.slice(0, 10) } : {}, s.u === 1 ? { u: 1 } : {}, s.t === 'l' ? { t: 'l' } : {})) : [];
+    .map((s) => Object.assign({ i: s.i, n: s.n.trim().slice(0, 80), la: s.la, lo: s.lo, srv: 1 }, typeof s.a === 'string' ? { a: s.a.slice(0, 200) } : {}, typeof s.p === 'string' ? { p: s.p.slice(0, 10) } : {}, s.u === 1 ? { u: 1 } : {}, s.t === 'l' ? { t: 'l' } : {}, s.bc === 1 ? { bc: 1 } : {})) : []; // bc：ブックカフェ（11/27・サーバー 1.16.3）
   const hide = ok && Array.isArray(f.hide) ? f.hide.filter((x) => typeof x === 'string' && STORE_ID.test(x)).slice(0, 5000) : []; // お店の希望で地図から外した店（v0.26.0）
   // 場所を直した店（v0.36.6・サーバー 1.13.0）：{ 店番号: [緯度, 経度] }
   const move = new Map();
@@ -47,7 +47,7 @@ function applyFixes(f) {
   // 休業中の印（{ 店番号: "2026-11" }）・店の種類（{ 店番号: book・used・both・lib・none }。none＝本屋ではない は地図から外す）（11/27・サーバー 1.16.0）
   const pause = new Map(), type = new Map(), typeAll = new Map();
   if (ok && f.pause && typeof f.pause === 'object' && !Array.isArray(f.pause)) for (const [k, v] of Object.entries(f.pause)) if (STORE_ID.test(k) && typeof v === 'string' && pause.size < 5000) pause.set(k, /^\d{4}-\d{2}$/.test(v) ? v : 1);
-  if (ok && f.type && typeof f.type === 'object' && !Array.isArray(f.type)) for (const [k, v] of Object.entries(f.type)) if (STORE_ID.test(k) && ['book', 'used', 'both', 'lib', 'none'].includes(v) && typeAll.size < 5000) { typeAll.set(k, v); if (v === 'none') hide.push(k); else type.set(k, v); }
+  if (ok && f.type && typeof f.type === 'object' && !Array.isArray(f.type)) for (const [k, v] of Object.entries(f.type)) if (STORE_ID.test(k) && ['book', 'used', 'both', 'cafe', 'lib', 'none'].includes(v) && typeAll.size < 5000) { typeAll.set(k, v); if (v === 'none') hide.push(k); else type.set(k, v); }
   if (setFixes(closed, rename, adds, hide, move, pause, type)) emit('fixes');
   creditReports(closed, rename, hide, adds, move, pause, typeAll);
 }

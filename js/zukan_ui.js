@@ -32,13 +32,14 @@ function shareChapter(date) { const ch = J.chapter(date); if (!ch.diary) { doSha
   openModal(`<h2>この日の物語をシェア</h2><p class="hint">画像にする前に、えらんでください。</p><label class="chk"><input type="checkbox" id="sc-dy"> 「この日のこと」（日記）も画像に入れる</label><p class="muted small">入れないときは、日記は画像に出ません。</p><div class="actions"><button class="btn primary" id="sc-go">画像にする</button><button class="btn ghost" id="sc-no">やめる</button></div>`);
   $('#sc-no').onclick = closeModal; $('#sc-go').onclick = () => { const on = $('#sc-dy').checked; closeModal(); doShareChapter(date, on); }; }
 async function doShareChapter(date, withDiary) { try { const ch = J.chapter(date); const blob = await storyImage(ch, S.settings.avatar, S.settings.handle, { diary: withDiary ? ch.diary : '' }); const r = await shareBlob(blob, `story-${date}.png`, ch.title, `${ch.title}　+${ch.earned}ページ・${ch.nStores}か所 #本めぐり`); if (r !== 'cancel') { G.noteShare('story', '', r); toast(r === 'saved' ? '画像を保存しました' : 'シェアしました', 'ok'); renderStory(); } } catch (e) { toast('画像にできませんでした', 'warn'); } }
+let wishJust = false; // 「ほしい」を押した直後だけ「送りました」を出す。開き直したあとは枠ごと出さない（11/27 ぶっくまさん「直後はいりますが、リロード後はいらないです」）
 export function renderStory() {
   const box = $('#story-today'), list = $('#chapters'); if (!box) return;
   const ch = J.chapter(todayISO());
   // 本にする機能の「ほしい」（11/27 ぶっくまさん「ほしい方は押してください → これ入れたい」）：押した回数だけ送る（ポリシー 2026-11-26 に同意した人だけ。中身は送らない）。1つの端末で1回
-  const wish = S.wishBook ? '<div class="wish-book done"><span>「ほしい」を送りました。ありがとうございます。できたら、ここでお知らせします</span></div>' : `<div class="wish-book"><span>日記と物語を、1冊の本にできるようにしたいと考えています。ほしい方は押してください</span><button class="btn" id="wish-book">${icon('heart')}ほしい</button></div>`;
+  const wish = S.wishBook ? (!wishJust ? '' : '<div class="wish-book done"><span>「ほしい」を送りました。ありがとうございます。できたら、ここでお知らせします</span></div>') : `<div class="wish-book"><span>日記と物語を、1冊の本にできるようにしたいと考えています。ほしい方は押してください</span><button class="btn" id="wish-book">${icon('heart')}ほしい</button></div>`;
   box.innerHTML = chapterHTML(ch, true) + wish + `<div class="actions"><button class="btn primary" id="sy-share">${icon('share')}今日の物語をシェア</button><button class="btn" id="sy-post">${icon('pen')}Xの投稿を記録</button>${APPX ? `<button class="btn" id="sy-diary">${icon('pen')}ほかの日のことを書く</button>` : ''}</div>${APPX_READ && !(APPX && S.shop) ? '<div id="rc-box"></div>' : ''}<div class="note">歩いた距離は、現在地を追っているあいだと、店と店のあいだを数えます（100mで1ページ）。閉じて歩いた分は、次の店でスタンプを押したときに、前の店からのまっすぐの距離で足します。歩数は距離からの目安です。</div>`;
-  if ($('#wish-book')) $('#wish-book').onclick = () => { S.wishBook = todayISO(); save(); E.countAct('wish', 'wbook', 'book'); toast('ありがとうございます。届きました', 'ok'); renderStory(); };
+  if ($('#wish-book')) $('#wish-book').onclick = () => { wishJust = true; S.wishBook = todayISO(); save(); E.countAct('wish', 'wbook', 'book'); toast('ありがとうございます。届きました', 'ok'); renderStory(); };
   $('#sy-share').onclick = () => shareChapter(todayISO()); $('#sy-post').onclick = postModal; if ($('#sy-diary')) $('#sy-diary').onclick = pickDayDiary;
   if ($('#rc-box')) renderCardBox($('#rc-box')); // 読書カード（自分の本屋を開いた人は「自分の本屋」の営業カレンダー）
   const past = J.chapters(40).filter((c) => c.date !== todayISO());

@@ -88,7 +88,7 @@ export function rebuild(base) {
   const named1 = (s) => { const r = named0(s); const mv = FIX.move.get(s.i); return mv ? Object.assign({}, r, { la: mv[0], lo: mv[1], mv: 1 }) : r; }; // 運営が直した場所（v0.36.6）
   // 運営が付けた休業中の印・直した種類（11/27・サーバー 1.16.0）。used＝古書店／both＝新刊も古書もある（ub）／book＝新刊の本屋／lib＝図書館
   const named = (s) => { const r = named1(s); const pz = FIX.pause.get(s.i), ty = FIX.type.get(s.i); if (!pz && !ty) return r; const o = Object.assign({}, r); if (pz && !o.pz) o.pz = pz;
-    if (ty) { delete o.u; delete o.ub; if (o.t === 'l') delete o.t; if (ty === 'used') o.u = 1; else if (ty === 'both') { o.u = 1; o.ub = 1; } else if (ty === 'lib') o.t = 'l'; } return o; };
+    if (ty) { delete o.u; delete o.ub; delete o.bc; if (o.t === 'l') delete o.t; if (ty === 'used') o.u = 1; else if (ty === 'both') { o.u = 1; o.ub = 1; } else if (ty === 'cafe') o.bc = 1; else if (ty === 'lib') o.t = 'l'; } return o; }; // cafe＝ブックカフェ（11/27）
   // 店のページ（v0.26.0）：サーバーの書店員さんの1冊は、書名なし（来た人だけ shops.js openPick）。picks.json の1冊（見本）はそのまま
   for (const s of all) { const sh = SHOPMAP.get(s.i) || null; s.shop = sh; s.part = partOf(s); if (sh && sh.pick) s.rec = { who: sh.pick.who, title: '', author: '', hint: sh.pick.hint, genre: sh.pick.genre, srv: 1, v: sh.pick.v, photo: sh.pick.pics ? 'srv' : '' }; else if (s.rec && s.rec.srv) delete s.rec; }
   STORES = all.filter((s) => !FIX.closed.has(s.i) && !FIX.hide.has(s.i)).map(named);

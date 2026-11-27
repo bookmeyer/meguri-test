@@ -283,7 +283,7 @@ function pauseBox(st, o = {}) {
 }
 // 種類が違う：新刊・古書・新刊も古書も・ブックカフェ・図書館・本屋ではない（神保町のように、いろいろな店が並ぶ所で。ブックカフェは、まだ地図の種類にないので報告として集めるだけ）
 const TYPES = [['book', '新刊の本屋'], ['used', '古書店（古本屋）'], ['both', '新刊も古書もある'], ['cafe', 'ブックカフェ（本が読める・買えるカフェ）'], ['lib', '図書館'], ['none', '本屋ではない（ギャラリー・事務所・倉庫など）']];
-const typeNow = (st) => (isLib(st) ? 'lib' : st.ub ? 'both' : st.u ? 'used' : 'book');
+const typeNow = (st) => (isLib(st) ? 'lib' : st.bc ? 'cafe' : st.ub ? 'both' : st.u ? 'used' : 'book');
 function typeBox(st, o = {}) {
   const x = $('#sheet-extra'); const now = typeNow(st); const tag = (nt) => (o.near ? '【店の前から】' : '') + nt;
   x.innerHTML = `<div class="rp"><b>この${placeWord(st)}の種類は？</b><div class="muted small">いまは「${TYPES.find((t) => t[0] === now)[1]}」として載っています</div>${TYPES.map(([k, l]) => `<label class="chk"><input type="radio" name="ty" value="${k}"${k === now ? ' disabled' : ''}> ${l}${k === now ? '（いまの種類）' : ''}</label>`).join('')}${REWARD(false)}${NOTE_IN('洋書の古書店')}<div class="actions"><button class="btn primary" id="ty-ok">運営に知らせる</button><button class="btn ghost" id="ty-no">やめる</button></div></div>`;
@@ -357,7 +357,7 @@ export function openSheet(id, quiet) {
   const b = [];
   if (st.closed) b.push('<span class="badge">閉店（みんなの地図から外しました）</span>'); if (st.demo) b.push('<span class="badge">見本（実在しません）</span>'); if (st.custom) b.push('<span class="badge">自分で追加</span>'); if (st.fix) b.push('<span class="badge">名前を直した（この端末）</span>'); if (st.ov) b.push('<span class="badge">名前を確認ずみ</span>'); if (st.sw) b.push('<span class="badge ao">店のサイト・SNSで確認</span>'); else if (st.cf || st.x) b.push('<span class="badge ao">公式一覧で確認</span>');
   if (st.part && st.part.fresh) b.push(`<span class="badge part">参加店</span>${st.part.isNew ? '<span class="badge new">新しく届いた</span>' : ''}`); // v0.27.0
-  if (feat) b.push(`<span class="badge feat">${icon('crown')}今週の推し店</span>`); if (st.u) b.push(st.ub ? '<span class="badge">新刊・古書</span>' : '<span class="badge">古書店</span>'); if (isLib(st)) b.push('<span class="badge lib">図書館</span>');
+  if (feat) b.push(`<span class="badge feat">${icon('crown')}今週の推し店</span>`); if (st.u) b.push(st.ub ? '<span class="badge">新刊・古書</span>' : '<span class="badge">古書店</span>'); if (st.bc) b.push('<span class="badge">ブックカフェ</span>'); if (isLib(st)) b.push('<span class="badge lib">図書館</span>');
   b.push(stamp ? `<span class="badge shu">スタンプ ${fmtDate(stamp.d)}</span>${stamp.trial ? '<span class="badge trial">体験</span>' : ''}` : vs.length ? `<span class="badge sumi">記録 ${vs.length}回</span>` : '<span class="badge">まだ</span>');
   for (const e of E.liveEvents().filter((x) => E.isTarget(x, st)).slice(0, 2)) { const fr = E.frameFor(e, st); b.push(`<span class="badge evb" style="--evc:${esc(fr.color)}">${esc(fr.label || e.name)}${fr === e.special ? '（特別な枠）' : '（イベント）'}</span>`); }
   const evn = E.liveEvents().find((x) => E.narrow(x) && E.isTarget(x, st)); // 参加店の一覧へ（v0.18.1）
